@@ -1,0 +1,33 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 46294edeacd73a84898e0616850cd83f, type: 3}
+  m_Name: SCN_Test_1
+  m_EditorClassIdentifier: Assembly-CSharp::ScenarioData
+  scenarioTitle: 
+  dialogueText: "Warning\u2026 your financial nodes have been compromised. Immediate
+    protocol intervention is required. Unverified transactions detected\u2026 Do
+    you wish to authorize containment?"
+  choices:
+  - choiceText: IGNORE
+    cyberStatusDelta: -10
+    feedbackText: 'The unverified user has continued to make unverified transactions.
+      (BAD CHOICE - CYBER STATUS REDUCED)
+
+'
+    isCorrect: 0
+  - choiceText: CONTACT THE BANK TO MANAGE IT
+    cyberStatusDelta: 10
+    feedbackText: 'The bank successfully locks out the unverified user from accessing
+      any more transactions. (GOOD CHOICE - CYBER STATUS INCREASED)
+
+'
+    isCorrect: 1
