@@ -12,7 +12,7 @@ public class TilemapObjectColliderManager : MonoBehaviour
     {
         public Tilemap tilemap;
         public bool colliderEnabled = true;
-        public bool useComposite = true;
+        public bool useComposite = false;
         public bool isTrigger;
         public PhysicsMaterial2D physicsMaterial;
         public bool overrideLayer;
@@ -27,7 +27,7 @@ public class TilemapObjectColliderManager : MonoBehaviour
     [Header("Collider Setup")]
     [SerializeField] private bool autoConfigureInEditor = true;
     [SerializeField] private bool applyOnAwake = true;
-    [SerializeField] private bool useCompositeCollider = true;
+    [SerializeField] private bool useCompositeCollider = false;
     [SerializeField] private CompositeCollider2D.GeometryType compositeGeometryType = CompositeCollider2D.GeometryType.Outlines;
     [SerializeField] private float compositeVertexDistance = 0.01f;
     [SerializeField] private float tileExtrusionFactor = 0.01f;
@@ -172,7 +172,7 @@ public class TilemapObjectColliderManager : MonoBehaviour
             {
                 tilemap = childTilemap,
                 colliderEnabled = true,
-                useComposite = true,
+                useComposite = false,
                 isTrigger = false,
                 overrideLayer = false,
                 layer = childTilemap.gameObject.layer,
