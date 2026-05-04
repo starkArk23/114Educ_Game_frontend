@@ -1761,6 +1761,7 @@ GameObject:
   m_Component:
   - component: {fileID: 730945235}
   - component: {fileID: 730945234}
+  - component: {fileID: 730945236}
   m_Layer: 0
   m_Name: TileMap
   m_TagString: Untagged
@@ -1796,6 +1797,31 @@ Transform:
   - {fileID: 1809613355}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &730945236
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 730945233}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4c6f6d5f7c3941d78a5b7ac6618e2f1b, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::TilemapObjectColliderManager
+  autoFindObjectTilemaps: 1
+  preferredObjectTilemapNames:
+  - Tilemap_Objects
+  - Tilemap Objects
+  - Objects
+  targets: []
+  autoConfigureInEditor: 1
+  applyOnAwake: 1
+  useCompositeCollider: 1
+  compositeVertexDistance: 0.01
+  tileExtrusionFactor: 0.01
+  compositeMaterial: {fileID: 0}
+  compositeIsTrigger: 0
 --- !u!1 &756965813
 GameObject:
   m_ObjectHideFlags: 0
