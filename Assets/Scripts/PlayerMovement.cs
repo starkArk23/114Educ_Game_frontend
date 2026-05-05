@@ -9,7 +9,7 @@ public class PlayerMovement : MonoBehaviour
     [SerializeField] private bool useYSorting = true;
     [SerializeField] private int sortingOrderOffset;
     [SerializeField] private float sortingOrderScale = 100f;
-    [SerializeField] private float sortingPivotOffset = -0.5f;
+    [SerializeField] private float sortingPivotOffset = -0.6f;
 
     private static readonly HashSet<string> movementLocks = new HashSet<string>();
 

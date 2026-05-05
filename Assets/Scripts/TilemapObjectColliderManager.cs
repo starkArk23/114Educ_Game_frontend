@@ -3,6 +3,10 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Tilemaps;
 
+#if UNITY_EDITOR
+using UnityEditor;
+#endif
+
 [ExecuteAlways]
 [DisallowMultipleComponent]
 public class TilemapObjectColliderManager : MonoBehaviour
@@ -44,6 +48,10 @@ public class TilemapObjectColliderManager : MonoBehaviour
 
     private readonly List<TilemapColliderTarget> resolvedTargets = new List<TilemapColliderTarget>();
 
+#if UNITY_EDITOR
+    private bool applyColliderSetupQueued;
+#endif
+
     private void Reset()
     {
         PopulateTargetsIfNeeded(true);
@@ -66,8 +74,38 @@ public class TilemapObjectColliderManager : MonoBehaviour
         if (!autoConfigureInEditor)
             return;
 
+        if (!Application.isPlaying)
+        {
+#if UNITY_EDITOR
+            QueueEditorApplyColliderSetup();
+#endif
+            return;
+        }
+
         ApplyColliderSetup();
     }
+
+#if UNITY_EDITOR
+    private void QueueEditorApplyColliderSetup()
+    {
+        if (applyColliderSetupQueued)
+            return;
+
+        applyColliderSetupQueued = true;
+        EditorApplication.delayCall += ApplyColliderSetupFromEditorDelay;
+    }
+
+    private void ApplyColliderSetupFromEditorDelay()
+    {
+        EditorApplication.delayCall -= ApplyColliderSetupFromEditorDelay;
+        applyColliderSetupQueued = false;
+
+        if (this == null || !autoConfigureInEditor)
+            return;
+
+        ApplyColliderSetup();
+    }
+#endif
 
     [ContextMenu("Apply Collider Setup")]
     public void ApplyColliderSetup()
