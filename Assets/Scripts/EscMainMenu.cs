@@ -9,7 +9,7 @@ public class EscToMainMenu : MonoBehaviour
     {
         if (Input.GetKeyDown(KeyCode.Escape))
         {
-            Time.timeScale = 1f; // safety in case you paused before
+            Time.timeScale = 0f;
             SceneManager.LoadScene(mainMenuSceneName);
         }
     }
