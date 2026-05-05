@@ -23,15 +23,6 @@ public class PauseMenu : MonoBehaviour
 
     private void Update()
     {
-        if (Input.GetKeyDown(KeyCode.Escape))
-        {
-            if (isPaused) Resume();
-            else Pause();
-            
-        }
-        if (Input.GetKeyDown(KeyCode.Escape))
-    Debug.Log("ESC pressed");
-
     }
 
     public void Resume()
