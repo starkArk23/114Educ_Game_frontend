@@ -5,11 +5,17 @@ using UnityEngine;
 public class PlayerMovement : MonoBehaviour
 {
     [SerializeField] private float speed = 3f;
+    [Header("Sprite Sorting")]
+    [SerializeField] private bool useYSorting = true;
+    [SerializeField] private int sortingOrderOffset;
+    [SerializeField] private float sortingOrderScale = 100f;
+    [SerializeField] private float sortingPivotOffset = -0.5f;
 
     private static readonly HashSet<string> movementLocks = new HashSet<string>();
 
     private Rigidbody2D rb;
     private Animator animator;
+    private SpriteRenderer spriteRenderer;
     private Vector2 rawInput;              // Direct WASD input
     private Vector2 moveDirection;         // Normalized direction used for physics
     private Vector2 lastLookDirection = Vector2.down;
@@ -36,6 +42,7 @@ public class PlayerMovement : MonoBehaviour
     {
         rb = GetComponent<Rigidbody2D>();
         animator = GetComponent<Animator>();
+        spriteRenderer = GetComponent<SpriteRenderer>();
     }
 
     private void Update()
@@ -83,5 +90,14 @@ public class PlayerMovement : MonoBehaviour
             return;
 
         rb.MovePosition(rb.position + moveDirection * speed * Time.fixedDeltaTime);
+    }
+
+    private void LateUpdate()
+    {
+        if (!useYSorting || spriteRenderer == null)
+            return;
+
+        float sortY = transform.position.y + sortingPivotOffset;
+        spriteRenderer.sortingOrder = sortingOrderOffset - Mathf.RoundToInt(sortY * sortingOrderScale);
     }
 }
