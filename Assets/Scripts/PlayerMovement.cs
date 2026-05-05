@@ -1,5 +1,7 @@
+using System;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.Tilemaps;
 
 [RequireComponent(typeof(Rigidbody2D))]
 public class PlayerMovement : MonoBehaviour
@@ -10,6 +12,15 @@ public class PlayerMovement : MonoBehaviour
     [SerializeField] private int sortingOrderOffset;
     [SerializeField] private float sortingOrderScale = 100f;
     [SerializeField] private float sortingPivotOffset = -0.6f;
+
+    [Header("Object Occlusion Sorting")]
+    [SerializeField] private bool useObjectOcclusionSorting = true;
+    [SerializeField] private string sortingLayerWhenInFront = "ActorsFront";
+    [SerializeField] private string sortingLayerWhenBehind = "ActorsBehind";
+    [SerializeField] private bool autoFindOccluderTilemaps = true;
+    [SerializeField] private string[] preferredOccluderTilemapNames = { "Tilemap_Objects", "Tilemap Objects", "Objects" };
+    [SerializeField] private Tilemap[] occluderTilemaps = Array.Empty<Tilemap>();
+    [SerializeField] private float occlusionProbeOffset = 0.05f;
 
     private static readonly HashSet<string> movementLocks = new HashSet<string>();
 
@@ -43,6 +54,12 @@ public class PlayerMovement : MonoBehaviour
         rb = GetComponent<Rigidbody2D>();
         animator = GetComponent<Animator>();
         spriteRenderer = GetComponent<SpriteRenderer>();
+        ResolveOccluderTilemapsIfNeeded();
+    }
+
+    private void OnValidate()
+    {
+        ResolveOccluderTilemapsIfNeeded();
     }
 
     private void Update()
@@ -94,10 +111,95 @@ public class PlayerMovement : MonoBehaviour
 
     private void LateUpdate()
     {
-        if (!useYSorting || spriteRenderer == null)
+        if (spriteRenderer == null)
+            return;
+
+        UpdateOcclusionSortingLayer();
+
+        if (!useYSorting)
             return;
 
         float sortY = transform.position.y + sortingPivotOffset;
         spriteRenderer.sortingOrder = sortingOrderOffset - Mathf.RoundToInt(sortY * sortingOrderScale);
+    }
+
+    private void UpdateOcclusionSortingLayer()
+    {
+        if (!useObjectOcclusionSorting)
+            return;
+
+        ResolveOccluderTilemapsIfNeeded();
+        spriteRenderer.sortingLayerName = IsBehindOccluder() ? sortingLayerWhenBehind : sortingLayerWhenInFront;
+    }
+
+    private bool IsBehindOccluder()
+    {
+        if (occluderTilemaps == null || occluderTilemaps.Length == 0)
+            return false;
+
+        Vector3 pivotWorldPosition = transform.position + Vector3.up * (sortingPivotOffset + occlusionProbeOffset);
+
+        for (int index = 0; index < occluderTilemaps.Length; index++)
+        {
+            Tilemap tilemap = occluderTilemaps[index];
+
+            if (tilemap == null)
+                continue;
+
+            if (tilemap.HasTile(tilemap.WorldToCell(pivotWorldPosition)))
+                return true;
+        }
+
+        return false;
+    }
+
+    private void ResolveOccluderTilemapsIfNeeded()
+    {
+        if (!autoFindOccluderTilemaps || HasAssignedOccluderTilemap())
+            return;
+
+        Tilemap[] sceneTilemaps = FindObjectsByType<Tilemap>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+        List<Tilemap> matches = new List<Tilemap>();
+
+        for (int tilemapIndex = 0; tilemapIndex < sceneTilemaps.Length; tilemapIndex++)
+        {
+            Tilemap tilemap = sceneTilemaps[tilemapIndex];
+
+            if (tilemap == null || !HasPreferredOccluderName(tilemap.name))
+                continue;
+
+            matches.Add(tilemap);
+        }
+
+        if (matches.Count > 0)
+            occluderTilemaps = matches.ToArray();
+    }
+
+    private bool HasAssignedOccluderTilemap()
+    {
+        if (occluderTilemaps == null)
+            return false;
+
+        for (int index = 0; index < occluderTilemaps.Length; index++)
+        {
+            if (occluderTilemaps[index] != null)
+                return true;
+        }
+
+        return false;
+    }
+
+    private bool HasPreferredOccluderName(string tilemapName)
+    {
+        if (string.IsNullOrWhiteSpace(tilemapName) || preferredOccluderTilemapNames == null)
+            return false;
+
+        for (int index = 0; index < preferredOccluderTilemapNames.Length; index++)
+        {
+            if (string.Equals(tilemapName, preferredOccluderTilemapNames[index], StringComparison.OrdinalIgnoreCase))
+                return true;
+        }
+
+        return false;
     }
 }
