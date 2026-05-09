@@ -5,6 +5,8 @@ public class PauseMenu : MonoBehaviour
 {
     [Header("UI")]
     [SerializeField] private GameObject pauseMenuUI;
+    [SerializeField] private GameObject dimOverlay;
+    [SerializeField] private bool allowEscToggle = true;
 
     [Header("Scenes")]
     [SerializeField] private string mainMenuSceneName = "MainMenu";
@@ -13,31 +15,34 @@ public class PauseMenu : MonoBehaviour
 
     private void Start()
     {
-        if (pauseMenuUI != null)
-            pauseMenuUI.SetActive(false);
-
-        Time.timeScale = 1f;
-        isPaused = false;
-        PlayerMovement.RemoveMovementLock("Pause");
+        SetPaused(false);
     }
 
     private void Update()
     {
+        if (!allowEscToggle)
+            return;
+
+        if (Input.GetKeyDown(KeyCode.Escape))
+            TogglePause();
+    }
+
+    public void TogglePause()
+    {
+        if (isPaused)
+            Resume();
+        else
+            Pause();
     }
 
     public void Resume()
     {
-        if (pauseMenuUI != null)
-            pauseMenuUI.SetActive(false);
-
-        Time.timeScale = 1f;
-        isPaused = false;
-        PlayerMovement.RemoveMovementLock("Pause");
+        SetPaused(false);
     }
 
     public void GoToMainMenu()
     {
-        Time.timeScale = 1f;
+        SetPaused(false);
         SceneManager.LoadScene(mainMenuSceneName);
     }
 
@@ -48,11 +53,24 @@ public class PauseMenu : MonoBehaviour
 
     private void Pause()
     {
-        if (pauseMenuUI != null)
-            pauseMenuUI.SetActive(true);
+        SetPaused(true);
+    }
 
-        Time.timeScale = 0f;
-        isPaused = true;
-        PlayerMovement.AddMovementLock("Pause");
+    private void SetPaused(bool paused)
+    {
+        isPaused = paused;
+
+        if (pauseMenuUI != null)
+            pauseMenuUI.SetActive(paused);
+
+        if (dimOverlay != null)
+            dimOverlay.SetActive(paused);
+
+        Time.timeScale = paused ? 0f : 1f;
+
+        if (paused)
+            PlayerMovement.AddMovementLock("Pause");
+        else
+            PlayerMovement.RemoveMovementLock("Pause");
     }
 }
