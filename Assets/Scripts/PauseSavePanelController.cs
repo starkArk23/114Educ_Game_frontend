@@ -1,6 +1,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Globalization;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
@@ -21,6 +22,8 @@ public class PauseSavePanelController
     private readonly Button[] slotButtons = new Button[5];
 
     private int pendingSlotNumber = -1;
+    private bool hasLoadedSlots;
+    private bool isRefreshingSlots;
 
     public bool IsOpen => panelRoot != null && panelRoot.activeSelf;
 
@@ -46,7 +49,11 @@ public class PauseSavePanelController
         SetMainMenuVisible(false);
         panelRoot.SetActive(true);
         HideConfirmation();
+        hasLoadedSlots = false;
+        isRefreshingSlots = true;
         SetStatus("Loading save slots...");
+        SetButtonsInteractable(false);
+        UpdateSlotLabels();
         pauseMenu.StartCoroutine(RefreshSlots());
     }
 
@@ -209,10 +216,15 @@ public class PauseSavePanelController
 
     private IEnumerator RefreshSlots()
     {
+        isRefreshingSlots = true;
+
         yield return GameSession.Instance.StartCoroutine(GameSession.Instance.ListSaveSlots((slots, error) =>
         {
             if (!string.IsNullOrEmpty(error))
             {
+                hasLoadedSlots = false;
+                slotsByNumber.Clear();
+                UpdateSlotLabels();
                 SetStatus(error);
                 return;
             }
@@ -225,13 +237,29 @@ public class PauseSavePanelController
                     slotsByNumber[slot.slotNumber] = slot;
             }
 
+            hasLoadedSlots = true;
             UpdateSlotLabels();
             SetStatus($"Saving as {GameSession.Instance.OperatorName}");
         }));
+
+        isRefreshingSlots = false;
+        SetButtonsInteractable(hasLoadedSlots);
     }
 
     private void OnSlotPressed(int slotNumber)
     {
+        if (isRefreshingSlots)
+        {
+            SetStatus("Wait for save slots to finish loading.");
+            return;
+        }
+
+        if (!hasLoadedSlots)
+        {
+            SetStatus("Save slots are unavailable right now. Try reopening the panel.");
+            return;
+        }
+
         if (slotsByNumber.ContainsKey(slotNumber))
         {
             pendingSlotNumber = slotNumber;
@@ -255,21 +283,26 @@ public class PauseSavePanelController
 
     private IEnumerator SaveToSlot(int slotNumber)
     {
+        if (!hasLoadedSlots)
+        {
+            SetStatus("Save slots are unavailable right now. Try reopening the panel.");
+            yield break;
+        }
+
         SetButtonsInteractable(false);
         SetStatus($"Saving to Slot {slotNumber}...");
 
         GameSession.SaveSlotInfo savedSlot = null;
         string saveError = null;
-        yield return GameSession.Instance.StartCoroutine(GameSession.Instance.SaveToSlot(slotNumber, $"Slot {slotNumber}", (slot, error) =>
+        yield return GameSession.Instance.StartCoroutine(GameSession.Instance.SaveToSlot(slotNumber, null, (slot, error) =>
         {
             savedSlot = slot;
             saveError = error;
         }));
 
-        SetButtonsInteractable(true);
-
         if (!string.IsNullOrEmpty(saveError))
         {
+            SetButtonsInteractable(hasLoadedSlots);
             SetStatus(saveError);
             yield break;
         }
@@ -278,6 +311,15 @@ public class PauseSavePanelController
             slotsByNumber[slotNumber] = savedSlot;
 
         UpdateSlotLabels();
+        SetStatus("Refreshing save slots...");
+        yield return pauseMenu.StartCoroutine(RefreshSlots());
+
+        if (!hasLoadedSlots)
+        {
+            SetStatus($"Saved to Slot {slotNumber}, but slot refresh failed.");
+            yield break;
+        }
+
         SetStatus($"Saved to Slot {slotNumber}.");
     }
 
@@ -292,9 +334,7 @@ public class PauseSavePanelController
                 continue;
             }
 
-            string scene = string.IsNullOrWhiteSpace(slot.currentScene) ? "No scene" : slot.currentScene;
-            string location = string.IsNullOrWhiteSpace(slot.currentLocation) ? "No location" : slot.currentLocation;
-            SetButtonLabel(slotButtons[slotIndex], $"Slot {slotNumber}\n{scene}\n{location}");
+            SetButtonLabel(slotButtons[slotIndex], BuildOccupiedLabel(slotNumber, slot));
         }
     }
 
@@ -310,9 +350,6 @@ public class PauseSavePanelController
 
     private void SetButtonsInteractable(bool interactable)
     {
-        if (saveButton != null)
-            saveButton.interactable = interactable;
-
         for (int index = 0; index < slotButtons.Length; index++)
         {
             if (slotButtons[index] != null)
@@ -386,5 +423,20 @@ public class PauseSavePanelController
     private static string BuildEmptyLabel(int slotNumber)
     {
         return $"Slot {slotNumber}: Empty";
+    }
+
+    private static string BuildOccupiedLabel(int slotNumber, GameSession.SaveSlotInfo slot)
+    {
+        string slotName = string.IsNullOrWhiteSpace(slot.slotName) ? "UNKNOWN" : slot.slotName.Trim();
+        string savedAt = FormatSavedAt(slot.lastPlayedAt);
+        return $"Slot {slotNumber}\n{slotName}\n{savedAt}";
+    }
+
+    private static string FormatSavedAt(string lastPlayedAt)
+    {
+        if (DateTime.TryParse(lastPlayedAt, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out DateTime parsed))
+            return parsed.ToLocalTime().ToString("g", CultureInfo.CurrentCulture);
+
+        return "Unknown save time";
     }
 }

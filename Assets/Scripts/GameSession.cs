@@ -203,7 +203,11 @@ public class GameSession : MonoBehaviour
             yield break;
         }
 
-        SaveSnapshot snapshot = BuildSnapshot(slotName);
+        string effectiveSlotName = string.IsNullOrWhiteSpace(slotName)
+            ? operatorName
+            : slotName.Trim();
+
+        SaveSnapshot snapshot = BuildSnapshot(effectiveSlotName);
         string requestBody = JsonConvert.SerializeObject(snapshot);
         string responseText = null;
         string requestError = null;
