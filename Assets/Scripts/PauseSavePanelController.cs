@@ -84,23 +84,35 @@ public class PauseSavePanelController
 
         TMP_Text titleTemplate = pauseMenuRoot.GetComponentInChildren<TMP_Text>(true);
 
-        CreateSaveButton(templateButton);
-        menuObjects.Add(saveButton.gameObject);
+        bool createdSaveButton = CreateSaveButton(templateButton);
+        if (createdSaveButton && saveButton != null)
+            menuObjects.Add(saveButton.gameObject);
+
         CreatePanel(templateButton, titleTemplate);
     }
 
-    private void CreateSaveButton(Button templateButton)
+    private bool CreateSaveButton(Button templateButton)
     {
-        saveButton = UnityEngine.Object.Instantiate(templateButton, templateButton.transform.parent);
-        saveButton.name = "SaveButton";
+        saveButton = FindButton("SaveButton");
+        bool createdSaveButton = false;
+
+        if (saveButton == null)
+        {
+            saveButton = UnityEngine.Object.Instantiate(templateButton, templateButton.transform.parent);
+            saveButton.name = "SaveButton";
+            createdSaveButton = true;
+        }
+
         SetButtonLabel(saveButton, "Save Game");
         saveButton.onClick.RemoveAllListeners();
         saveButton.onClick.AddListener(pauseMenu.OpenSavePanel);
 
-        RectTransform resumeRect = templateButton.GetComponent<RectTransform>();
         RectTransform saveRect = saveButton.GetComponent<RectTransform>();
-        saveRect.anchoredPosition = new Vector2(resumeRect.anchoredPosition.x, -480f);
+        RectTransform resumeRect = templateButton.GetComponent<RectTransform>();
+        saveRect.anchoredPosition = new Vector2(resumeRect.anchoredPosition.x, -300f);
         saveRect.SetSiblingIndex(Mathf.Max(0, pauseMenuRect.childCount - 1));
+
+        return createdSaveButton;
     }
 
     private void CreatePanel(Button templateButton, TMP_Text titleTemplate)
