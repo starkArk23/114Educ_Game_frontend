@@ -25,6 +25,31 @@ public class GameSession : MonoBehaviour
     }
 
     [Serializable]
+    public class SaveSlotDetail
+    {
+        public string id;
+        public int slotNumber;
+        public string slotName;
+        public string currentScene;
+        public string currentLocation;
+        public string currentScenarioId;
+        public int currentCyberStatus;
+        public int currentTrustTokens;
+        public List<string> unlockedFlags;
+        public Dictionary<string, object> sessionState;
+        public string lastPlayedAt;
+    }
+
+    public class PendingRestoreState
+    {
+        public string sceneName;
+        public int cyberStatus;
+        public int trustTokens;
+        public List<string> unlockedFlags;
+        public Vector3? playerPosition;
+    }
+
+    [Serializable]
     private class PlayerResponse
     {
         public string id;
@@ -56,6 +81,7 @@ public class GameSession : MonoBehaviour
     private int activeSaveSlotNumber;
     private int currentCyberStatus = 50;
     private int currentTrustTokens;
+    private PendingRestoreState pendingRestore;
 
     public static GameSession Instance
     {
@@ -72,6 +98,8 @@ public class GameSession : MonoBehaviour
     public int ActiveSaveSlotNumber => activeSaveSlotNumber;
     public int CurrentCyberStatus => currentCyberStatus;
     public int CurrentTrustTokens => currentTrustTokens;
+    public bool HasPendingRestore => pendingRestore != null;
+    public PendingRestoreState CurrentPendingRestore => pendingRestore;
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
     private static void Bootstrap()
@@ -120,9 +148,10 @@ public class GameSession : MonoBehaviour
         SceneManager.sceneLoaded -= OnSceneLoaded;
     }
 
-    private void OnSceneLoaded(Scene _scene, LoadSceneMode _mode)
+    private void OnSceneLoaded(Scene scene, LoadSceneMode _mode)
     {
         SyncOperatorNameFromLoadingScreen();
+        ApplyPendingRestore(scene);
     }
 
     public void SetCurrentStats(int cyberStatus, int trustTokens)
@@ -207,6 +236,66 @@ public class GameSession : MonoBehaviour
         onComplete?.Invoke(slot, null);
     }
 
+    public IEnumerator LoadSaveSlot(string saveSlotId, Action<SaveSlotDetail, string> onComplete)
+    {
+        if (string.IsNullOrWhiteSpace(saveSlotId))
+        {
+            onComplete?.Invoke(null, "Choose a valid save slot.");
+            yield break;
+        }
+
+        string ensureError = null;
+        yield return StartCoroutine(EnsurePlayerRegistered((error) => ensureError = error));
+
+        if (!string.IsNullOrEmpty(ensureError))
+        {
+            onComplete?.Invoke(null, ensureError);
+            yield break;
+        }
+
+        string responseText = null;
+        string requestError = null;
+        yield return StartCoroutine(SendRequest("GET", $"{apiBaseUrl}/save-slots/{saveSlotId}", null, (body, error) =>
+        {
+            responseText = body;
+            requestError = error;
+        }));
+
+        if (!string.IsNullOrEmpty(requestError))
+        {
+            onComplete?.Invoke(null, requestError);
+            yield break;
+        }
+
+        SaveSlotDetail slot = JsonConvert.DeserializeObject<SaveSlotDetail>(responseText);
+        if (slot == null)
+        {
+            onComplete?.Invoke(null, "Unable to load save slot details.");
+            yield break;
+        }
+
+        activeSaveSlotId = slot.id ?? string.Empty;
+        activeSaveSlotNumber = slot.slotNumber;
+        currentCyberStatus = Mathf.Clamp(slot.currentCyberStatus, 0, 100);
+        currentTrustTokens = Mathf.Max(0, slot.currentTrustTokens);
+
+        pendingRestore = new PendingRestoreState
+        {
+            sceneName = string.IsNullOrWhiteSpace(slot.currentScene) ? string.Empty : slot.currentScene,
+            cyberStatus = currentCyberStatus,
+            trustTokens = currentTrustTokens,
+            unlockedFlags = slot.unlockedFlags != null ? new List<string>(slot.unlockedFlags) : new List<string>(),
+            playerPosition = TryGetPlayerPosition(slot.sessionState)
+        };
+
+        onComplete?.Invoke(slot, null);
+    }
+
+    public void ClearPendingRestore()
+    {
+        pendingRestore = null;
+    }
+
     private IEnumerator EnsurePlayerRegistered(Action<string> onComplete)
     {
         SyncOperatorNameFromLoadingScreen();
@@ -271,6 +360,7 @@ public class GameSession : MonoBehaviour
         activeSaveSlotNumber = 0;
         currentCyberStatus = 50;
         currentTrustTokens = 0;
+        pendingRestore = null;
     }
 
     private SaveSnapshot BuildSnapshot(string slotName)
@@ -334,6 +424,65 @@ public class GameSession : MonoBehaviour
 
         Vector3 position = playerTransform.position;
         return $"{SceneManager.GetActiveScene().name} ({position.x:F1}, {position.y:F1})";
+    }
+
+    private void ApplyPendingRestore(Scene loadedScene)
+    {
+        if (pendingRestore == null)
+            return;
+
+        if (!string.IsNullOrWhiteSpace(pendingRestore.sceneName)
+            && !string.Equals(loadedScene.name, pendingRestore.sceneName, StringComparison.Ordinal))
+            return;
+
+        currentCyberStatus = Mathf.Clamp(pendingRestore.cyberStatus, 0, 100);
+        currentTrustTokens = Mathf.Max(0, pendingRestore.trustTokens);
+
+        EventManager eventManager = EventManager.Instance;
+        if (eventManager != null)
+            eventManager.RestoreUnlockedFlags(pendingRestore.unlockedFlags);
+
+        if (pendingRestore.playerPosition.HasValue)
+            PlayerMovement.ApplySavedPositionOnce(pendingRestore.playerPosition.Value);
+
+        pendingRestore = null;
+    }
+
+    private static Vector3? TryGetPlayerPosition(Dictionary<string, object> sessionState)
+    {
+        if (sessionState == null || !sessionState.TryGetValue("playerPosition", out object rawPosition) || rawPosition == null)
+            return null;
+
+        if (!(rawPosition is Newtonsoft.Json.Linq.JObject positionObject))
+            return null;
+
+        bool hasX = TryGetFloat(positionObject, "x", out float x);
+        bool hasY = TryGetFloat(positionObject, "y", out float y);
+        if (!hasX || !hasY)
+            return null;
+
+        float z = 0f;
+        TryGetFloat(positionObject, "z", out z);
+        return new Vector3(x, y, z);
+    }
+
+    private static bool TryGetFloat(Newtonsoft.Json.Linq.JObject source, string key, out float value)
+    {
+        value = 0f;
+        if (source == null || string.IsNullOrEmpty(key) || !source.TryGetValue(key, StringComparison.OrdinalIgnoreCase, out Newtonsoft.Json.Linq.JToken token))
+            return false;
+
+        switch (token.Type)
+        {
+            case Newtonsoft.Json.Linq.JTokenType.Float:
+            case Newtonsoft.Json.Linq.JTokenType.Integer:
+                value = token.ToObject<float>();
+                return true;
+            case Newtonsoft.Json.Linq.JTokenType.String:
+                return float.TryParse(token.ToObject<string>(), NumberStyles.Float, CultureInfo.InvariantCulture, out value);
+            default:
+                return false;
+        }
     }
 
     private IEnumerator SendRequest(string method, string url, string jsonBody, Action<string, string> onComplete)

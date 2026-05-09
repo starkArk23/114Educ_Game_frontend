@@ -8,6 +8,7 @@ public class LoadingScreen : MonoBehaviour
 {
     public static string nextSceneName;
     public static string operatorName;
+    public static bool skipNameEntry;
     
     [SerializeField] private Slider progressBar; // optional
     [SerializeField] private CanvasGroup loadingGroup;
@@ -103,6 +104,7 @@ public class LoadingScreen : MonoBehaviour
             typingComplete = true;
 
         while (op.progress < 0.9f)
+
         {
             float p = Mathf.Clamp01(op.progress / 0.9f);
             if (progressBar != null) progressBar.value = p;
@@ -141,6 +143,7 @@ public class LoadingScreen : MonoBehaviour
         if (loadingCanvasRoot != null)
             Destroy(loadingCanvasRoot);
 
+        skipNameEntry = false;
         Destroy(gameObject);
     }
 
@@ -168,6 +171,14 @@ public class LoadingScreen : MonoBehaviour
 
     private void BeginNameEntry()
     {
+        if (skipNameEntry && !string.IsNullOrWhiteSpace(operatorName))
+        {
+            waitingForName = false;
+            nameSubmitted = true;
+            terminalBaseText = terminalText != null ? terminalText.text.TrimEnd('\r', '\n') : string.Empty;
+            return;
+        }
+
         waitingForName = true;
         nameSubmitted = false;
         promptBlinkTimer = 0f;

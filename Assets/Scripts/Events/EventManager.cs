@@ -28,6 +28,20 @@ public class EventManager : MonoBehaviour
     public string CurrentEventTitle => currentEvent != null ? currentEvent.title : null;
     public IReadOnlyCollection<string> UnlockedFlags => eventFlags;
 
+    public void RestoreUnlockedFlags(IEnumerable<string> flags)
+    {
+        eventFlags.Clear();
+
+        if (flags == null)
+            return;
+
+        foreach (string flag in flags)
+        {
+            if (!string.IsNullOrWhiteSpace(flag))
+                eventFlags.Add(flag.Trim());
+        }
+    }
+
     private void Awake()
     {
         if (Instance != null && Instance != this)

@@ -385,6 +385,6 @@ public class PauseSavePanelController
 
     private static string BuildEmptyLabel(int slotNumber)
     {
-        return $"Slot {slotNumber}\nEmpty";
+        return $"Slot {slotNumber}: Empty";
     }
 }
