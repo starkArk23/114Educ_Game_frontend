@@ -12,9 +12,12 @@ public class PauseMenu : MonoBehaviour
     [SerializeField] private string mainMenuSceneName = "MainMenu";
 
     private bool isPaused;
+    private PauseSavePanelController savePanelController;
 
     private void Start()
     {
+        GameSession.EnsureExists();
+        savePanelController = PauseSavePanelController.Create(this, pauseMenuUI);
         SetPaused(false);
     }
 
@@ -24,7 +27,15 @@ public class PauseMenu : MonoBehaviour
             return;
 
         if (Input.GetKeyDown(KeyCode.Escape))
+        {
+            // ESC should not close the save panel - only save/back buttons can
+            if (savePanelController != null && savePanelController.IsOpen)
+            {
+                return;
+            }
+
             TogglePause();
+        }
     }
 
     public void TogglePause()
@@ -37,11 +48,29 @@ public class PauseMenu : MonoBehaviour
 
     public void Resume()
     {
+        CloseSavePanel();
         SetPaused(false);
+    }
+
+    public void OpenSavePanel()
+    {
+        if (!isPaused)
+            SetPaused(true);
+
+        if (savePanelController == null)
+            savePanelController = PauseSavePanelController.Create(this, pauseMenuUI);
+
+        savePanelController?.ShowPanel();
+    }
+
+    public void CloseSavePanel()
+    {
+        savePanelController?.HidePanel();
     }
 
     public void GoToMainMenu()
     {
+        CloseSavePanel();
         SetPaused(false);
         SceneManager.LoadScene(mainMenuSceneName);
     }
@@ -60,8 +89,13 @@ public class PauseMenu : MonoBehaviour
     {
         isPaused = paused;
 
+        // Always close save panel - only opens on explicit "Save" button click
+        CloseSavePanel();
+
         if (pauseMenuUI != null)
             pauseMenuUI.SetActive(paused);
+
+        savePanelController?.SetRootActive(paused);
 
         if (dimOverlay != null)
             dimOverlay.SetActive(paused);

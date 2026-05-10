@@ -23,6 +23,7 @@ public class PlayerMovement : MonoBehaviour
     [SerializeField] private float occlusionProbeOffset = 0.05f;
 
     private static readonly HashSet<string> movementLocks = new HashSet<string>();
+    private static Vector3? pendingSavedPosition;
 
     private Rigidbody2D rb;
     private Animator animator;
@@ -49,12 +50,26 @@ public class PlayerMovement : MonoBehaviour
             movementLocks.Remove(lockId);
     }
 
+    public static void ApplySavedPositionOnce(Vector3 worldPosition)
+    {
+        pendingSavedPosition = worldPosition;
+    }
+
     private void Awake()
     {
         rb = GetComponent<Rigidbody2D>();
         animator = GetComponent<Animator>();
         spriteRenderer = GetComponent<SpriteRenderer>();
         ResolveOccluderTilemapsIfNeeded();
+
+        if (pendingSavedPosition.HasValue)
+        {
+            Vector3 worldPosition = pendingSavedPosition.Value;
+            transform.position = worldPosition;
+            if (rb != null)
+                rb.position = new Vector2(worldPosition.x, worldPosition.y);
+            pendingSavedPosition = null;
+        }
     }
 
     private void OnValidate()
