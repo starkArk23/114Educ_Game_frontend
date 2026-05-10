@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Text;
 using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 using TMPro;
 using UnityEngine;
 using UnityEngine.Networking;
@@ -185,9 +186,19 @@ public class GameSession : MonoBehaviour
             yield break;
         }
 
-        List<SaveSlotInfo> slots = string.IsNullOrEmpty(responseText)
-            ? new List<SaveSlotInfo>()
-            : JsonConvert.DeserializeObject<List<SaveSlotInfo>>(responseText) ?? new List<SaveSlotInfo>();
+        List<SaveSlotInfo> slots = new List<SaveSlotInfo>();
+        if (!string.IsNullOrWhiteSpace(responseText))
+        {
+            try
+            {
+                slots = JsonConvert.DeserializeObject<List<SaveSlotInfo>>(responseText) ?? new List<SaveSlotInfo>();
+            }
+            catch (JsonException exception)
+            {
+                onComplete?.Invoke(new List<SaveSlotInfo>(), $"Unable to read save slots: {exception.Message}");
+                yield break;
+            }
+        }
 
         onComplete?.Invoke(slots, null);
     }
@@ -228,7 +239,29 @@ public class GameSession : MonoBehaviour
             yield break;
         }
 
-        SaveSlotInfo slot = JsonConvert.DeserializeObject<SaveSlotInfo>(responseText);
+        if (string.IsNullOrWhiteSpace(responseText))
+        {
+            onComplete?.Invoke(null, "Backend returned an empty save response.");
+            yield break;
+        }
+
+        SaveSlotInfo slot;
+        try
+        {
+            slot = JsonConvert.DeserializeObject<SaveSlotInfo>(responseText);
+        }
+        catch (JsonException exception)
+        {
+            onComplete?.Invoke(null, $"Unable to read save response: {exception.Message}");
+            yield break;
+        }
+
+        if (slot == null || slot.slotNumber < 1)
+        {
+            onComplete?.Invoke(null, "Backend returned an invalid save slot.");
+            yield break;
+        }
+
         if (slot != null)
         {
             activeSaveSlotId = slot.id ?? string.Empty;
@@ -457,7 +490,7 @@ public class GameSession : MonoBehaviour
         if (sessionState == null || !sessionState.TryGetValue("playerPosition", out object rawPosition) || rawPosition == null)
             return null;
 
-        if (!(rawPosition is Newtonsoft.Json.Linq.JObject positionObject))
+        if (!(rawPosition is JObject positionObject))
             return null;
 
         bool hasX = TryGetFloat(positionObject, "x", out float x);
@@ -470,19 +503,19 @@ public class GameSession : MonoBehaviour
         return new Vector3(x, y, z);
     }
 
-    private static bool TryGetFloat(Newtonsoft.Json.Linq.JObject source, string key, out float value)
+    private static bool TryGetFloat(JObject source, string key, out float value)
     {
         value = 0f;
-        if (source == null || string.IsNullOrEmpty(key) || !source.TryGetValue(key, StringComparison.OrdinalIgnoreCase, out Newtonsoft.Json.Linq.JToken token))
+        if (source == null || string.IsNullOrEmpty(key) || !source.TryGetValue(key, StringComparison.OrdinalIgnoreCase, out JToken token))
             return false;
 
         switch (token.Type)
         {
-            case Newtonsoft.Json.Linq.JTokenType.Float:
-            case Newtonsoft.Json.Linq.JTokenType.Integer:
+            case JTokenType.Float:
+            case JTokenType.Integer:
                 value = token.ToObject<float>();
                 return true;
-            case Newtonsoft.Json.Linq.JTokenType.String:
+            case JTokenType.String:
                 return float.TryParse(token.ToObject<string>(), NumberStyles.Float, CultureInfo.InvariantCulture, out value);
             default:
                 return false;

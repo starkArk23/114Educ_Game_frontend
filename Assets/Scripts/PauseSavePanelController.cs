@@ -111,7 +111,7 @@ public class PauseSavePanelController
         }
 
         SetButtonLabel(saveButton, "Save Game");
-        saveButton.onClick.RemoveAllListeners();
+        saveButton.onClick = new Button.ButtonClickedEvent();
         saveButton.onClick.AddListener(pauseMenu.OpenSavePanel);
 
         RectTransform saveRect = saveButton.GetComponent<RectTransform>();
@@ -144,7 +144,7 @@ public class PauseSavePanelController
             int slotNumber = slotIndex + 1;
             Button slotButton = UnityEngine.Object.Instantiate(templateButton, panelRoot.transform);
             slotButton.name = $"SaveSlotButton{slotNumber}";
-            slotButton.onClick.RemoveAllListeners();
+            slotButton.onClick = new Button.ButtonClickedEvent();
             slotButton.onClick.AddListener(() => OnSlotPressed(slotNumber));
 
             RectTransform slotRect = slotButton.GetComponent<RectTransform>();
@@ -159,7 +159,7 @@ public class PauseSavePanelController
 
         Button backButton = UnityEngine.Object.Instantiate(templateButton, panelRoot.transform);
         backButton.name = "SavePanelBackButton";
-        backButton.onClick.RemoveAllListeners();
+    backButton.onClick = new Button.ButtonClickedEvent();
         backButton.onClick.AddListener(pauseMenu.CloseSavePanel);
         SetButtonLabel(backButton, "Back");
 
@@ -189,7 +189,7 @@ public class PauseSavePanelController
 
         Button confirmButton = UnityEngine.Object.Instantiate(templateButton, confirmRoot.transform);
         confirmButton.name = "ConfirmOverwriteButton";
-        confirmButton.onClick.RemoveAllListeners();
+    confirmButton.onClick = new Button.ButtonClickedEvent();
         confirmButton.onClick.AddListener(ConfirmOverwrite);
         SetButtonLabel(confirmButton, "Confirm Overwrite");
 
@@ -201,7 +201,7 @@ public class PauseSavePanelController
 
         Button cancelButton = UnityEngine.Object.Instantiate(templateButton, confirmRoot.transform);
         cancelButton.name = "CancelOverwriteButton";
-        cancelButton.onClick.RemoveAllListeners();
+    cancelButton.onClick = new Button.ButtonClickedEvent();
         cancelButton.onClick.AddListener(HideConfirmation);
         SetButtonLabel(cancelButton, "Cancel");
 
@@ -254,22 +254,38 @@ public class PauseSavePanelController
             return;
         }
 
-        if (!hasLoadedSlots)
+        pauseMenu.StartCoroutine(ResolveSlotSelection(slotNumber));
+    }
+
+    private IEnumerator ResolveSlotSelection(int slotNumber)
+    {
+        if (!hasLoadedSlots || !slotsByNumber.ContainsKey(slotNumber))
         {
-            SetStatus("Retrying save slot load...");
-            pauseMenu.StartCoroutine(RefreshSlots());
-            return;
+            SetStatus(!hasLoadedSlots ? "Loading save slots..." : $"Checking Slot {slotNumber}...");
+            SetButtonsInteractable(false);
+            yield return pauseMenu.StartCoroutine(RefreshSlots());
+
+            if (!hasLoadedSlots)
+            {
+                SetStatus("Save slots are unavailable right now. Try reopening the panel.");
+                yield break;
+            }
         }
 
         if (slotsByNumber.ContainsKey(slotNumber))
         {
-            pendingSlotNumber = slotNumber;
-            confirmText.text = $"Slot {slotNumber} already has saved progress. Overwrite it?";
-            confirmRoot.SetActive(true);
-            return;
+            ShowOverwriteConfirmation(slotNumber);
+            yield break;
         }
 
-        pauseMenu.StartCoroutine(SaveToSlot(slotNumber));
+        yield return pauseMenu.StartCoroutine(SaveToSlot(slotNumber));
+    }
+
+    private void ShowOverwriteConfirmation(int slotNumber)
+    {
+        pendingSlotNumber = slotNumber;
+        confirmText.text = $"Slot {slotNumber} already has saved progress. Overwrite it?";
+        confirmRoot.SetActive(true);
     }
 
     private void ConfirmOverwrite()
