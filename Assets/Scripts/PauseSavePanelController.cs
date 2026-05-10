@@ -8,6 +8,8 @@ using UnityEngine.UI;
 
 public class PauseSavePanelController
 {
+    private const string SavePanelName = "SaveSlotPanel";
+
     private readonly PauseMenu pauseMenu;
     private readonly GameObject pauseMenuRoot;
     private readonly RectTransform pauseMenuRect;
@@ -69,21 +71,34 @@ public class PauseSavePanelController
 
     public void SetRootActive(bool active)
     {
-        if (!active)
-            HidePanel();
+        HidePanel();
     }
 
     private void Initialize()
     {
         if (pauseMenuRoot == null || pauseMenuRect == null)
+        {
+            Debug.LogWarning("PauseSavePanelController could not initialize because the pause menu root is missing a RectTransform.");
             return;
+        }
 
         GameSession.EnsureExists();
 
+        GameObject stalePanelRoot = FindDirectChild(SavePanelName);
+        if (stalePanelRoot != null)
+            stalePanelRoot.SetActive(false);
+
         for (int index = 0; index < pauseMenuRect.childCount; index++)
         {
-            menuObjects.Add(pauseMenuRect.GetChild(index).gameObject);
+            GameObject child = pauseMenuRect.GetChild(index).gameObject;
+            if (child == stalePanelRoot)
+                continue;
+
+            menuObjects.Add(child);
         }
+
+        if (stalePanelRoot != null)
+            UnityEngine.Object.Destroy(stalePanelRoot);
 
         Button templateButton = FindButton("ResumeButton") ?? UnityEngine.Object.FindFirstObjectByType<Button>();
         if (templateButton == null)
@@ -96,6 +111,7 @@ public class PauseSavePanelController
             menuObjects.Add(saveButton.gameObject);
 
         CreatePanel(templateButton, titleTemplate);
+        HidePanel();
     }
 
     private bool CreateSaveButton(Button templateButton)
@@ -117,7 +133,13 @@ public class PauseSavePanelController
         RectTransform saveRect = saveButton.GetComponent<RectTransform>();
         RectTransform resumeRect = templateButton.GetComponent<RectTransform>();
         saveRect.anchoredPosition = new Vector2(resumeRect.anchoredPosition.x, -300f);
-        saveRect.sizeDelta = new Vector2(800f, saveRect.sizeDelta.y);
+        
+        // Use LayoutElement to constrain width while allowing proper text fitting
+        LayoutElement saveLayout = saveButton.GetComponent<LayoutElement>();
+        if (saveLayout == null)
+            saveLayout = saveButton.gameObject.AddComponent<LayoutElement>();
+        saveLayout.preferredWidth = Mathf.Max(resumeRect.rect.width, 400f);
+        
         saveRect.SetSiblingIndex(Mathf.Max(0, pauseMenuRect.childCount - 1));
 
         return createdSaveButton;
@@ -125,7 +147,7 @@ public class PauseSavePanelController
 
     private void CreatePanel(Button templateButton, TMP_Text titleTemplate)
     {
-        panelRoot = new GameObject("SaveSlotPanel", typeof(RectTransform));
+        panelRoot = new GameObject(SavePanelName, typeof(RectTransform));
         RectTransform panelRect = panelRoot.GetComponent<RectTransform>();
         panelRoot.transform.SetParent(pauseMenuRoot.transform, false);
         panelRect.anchorMin = Vector2.zero;
@@ -153,7 +175,12 @@ public class PauseSavePanelController
             slotRect.anchorMax = new Vector2(0.5f, 1f);
             slotRect.pivot = new Vector2(0.5f, 1f);
             slotRect.anchoredPosition = new Vector2(0f, -180f - (slotIndex * 96f));
-            slotRect.sizeDelta = new Vector2(800f, slotRect.sizeDelta.y);
+            
+            // Use LayoutElement to constrain width for proper text layout
+            LayoutElement slotLayout = slotButton.GetComponent<LayoutElement>();
+            if (slotLayout == null)
+                slotLayout = slotButton.gameObject.AddComponent<LayoutElement>();
+            slotLayout.preferredWidth = 600f;
 
             SetButtonLabel(slotButton, BuildEmptyLabel(slotNumber));
             slotButtons[slotIndex] = slotButton;
@@ -170,7 +197,11 @@ public class PauseSavePanelController
         backRect.anchorMax = new Vector2(0.5f, 1f);
         backRect.pivot = new Vector2(0.5f, 1f);
         backRect.anchoredPosition = new Vector2(0f, -660f);
-        backRect.sizeDelta = new Vector2(800f, backRect.sizeDelta.y);
+        
+        LayoutElement backLayout = backButton.GetComponent<LayoutElement>();
+        if (backLayout == null)
+            backLayout = backButton.gameObject.AddComponent<LayoutElement>();
+        backLayout.preferredWidth = 600f;
 
         CreateConfirmationOverlay(templateButton, titleTemplate);
     }
@@ -201,7 +232,11 @@ public class PauseSavePanelController
         confirmButtonRect.anchorMax = new Vector2(0.5f, 1f);
         confirmButtonRect.pivot = new Vector2(0.5f, 1f);
         confirmButtonRect.anchoredPosition = new Vector2(0f, -560f);
-        confirmButtonRect.sizeDelta = new Vector2(800f, confirmButtonRect.sizeDelta.y);
+        
+        LayoutElement confirmLayout = confirmButton.GetComponent<LayoutElement>();
+        if (confirmLayout == null)
+            confirmLayout = confirmButton.gameObject.AddComponent<LayoutElement>();
+        confirmLayout.preferredWidth = 600f;
 
         Button cancelButton = UnityEngine.Object.Instantiate(templateButton, confirmRoot.transform);
         cancelButton.name = "CancelOverwriteButton";
@@ -214,7 +249,11 @@ public class PauseSavePanelController
         cancelButtonRect.anchorMax = new Vector2(0.5f, 1f);
         cancelButtonRect.pivot = new Vector2(0.5f, 1f);
         cancelButtonRect.anchoredPosition = new Vector2(0f, -680f);
-        cancelButtonRect.sizeDelta = new Vector2(800f, cancelButtonRect.sizeDelta.y);
+        
+        LayoutElement cancelLayout = cancelButton.GetComponent<LayoutElement>();
+        if (cancelLayout == null)
+            cancelLayout = cancelButton.gameObject.AddComponent<LayoutElement>();
+        cancelLayout.preferredWidth = 600f;
 
         confirmRoot.SetActive(false);
     }
@@ -404,6 +443,18 @@ public class PauseSavePanelController
         return null;
     }
 
+    private GameObject FindDirectChild(string name)
+    {
+        for (int index = 0; index < pauseMenuRect.childCount; index++)
+        {
+            Transform child = pauseMenuRect.GetChild(index);
+            if (child != null && string.Equals(child.name, name, StringComparison.Ordinal))
+                return child.gameObject;
+        }
+
+        return null;
+    }
+
     private static TMP_Text CreateTitle(TMP_Text template, Transform parent, string text, float anchoredY, float fontSize)
     {
         TMP_Text label;
@@ -442,6 +493,7 @@ public class PauseSavePanelController
         {
             label.text = text;
             label.enableWordWrapping = false;
+            label.overflowMode = TextOverflowModes.Ellipsis;
         }
     }
 
