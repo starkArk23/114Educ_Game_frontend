@@ -135,9 +135,9 @@ public class PauseSavePanelController
 
         TMP_Text panelTitle = CreateTitle(titleTemplate, panelRoot.transform, "Save Progress", -60f, 58f);
         panelTitle.alignment = TextAlignmentOptions.Center;
-        statusText = CreateTitle(titleTemplate, panelRoot.transform, string.Empty, -860f, 28f);
+        statusText = CreateTitle(titleTemplate, panelRoot.transform, string.Empty, -120f, 28f);
         statusText.alignment = TextAlignmentOptions.Center;
-        statusText.enableWordWrapping = true;
+        statusText.enableWordWrapping = false;
 
         for (int slotIndex = 0; slotIndex < slotButtons.Length; slotIndex++)
         {
@@ -151,7 +151,7 @@ public class PauseSavePanelController
             slotRect.anchorMin = new Vector2(0.5f, 1f);
             slotRect.anchorMax = new Vector2(0.5f, 1f);
             slotRect.pivot = new Vector2(0.5f, 1f);
-            slotRect.anchoredPosition = new Vector2(0f, -180f - (slotIndex * 120f));
+            slotRect.anchoredPosition = new Vector2(0f, -180f - (slotIndex * 96f));
 
             SetButtonLabel(slotButton, BuildEmptyLabel(slotNumber));
             slotButtons[slotIndex] = slotButton;
@@ -167,7 +167,7 @@ public class PauseSavePanelController
         backRect.anchorMin = new Vector2(0.5f, 1f);
         backRect.anchorMax = new Vector2(0.5f, 1f);
         backRect.pivot = new Vector2(0.5f, 1f);
-        backRect.anchoredPosition = new Vector2(0f, -820f);
+        backRect.anchoredPosition = new Vector2(0f, -660f);
 
         CreateConfirmationOverlay(templateButton, titleTemplate);
     }
@@ -421,7 +421,7 @@ public class PauseSavePanelController
             rect.anchorMin = new Vector2(0.5f, 1f);
             rect.anchorMax = new Vector2(0.5f, 1f);
             rect.pivot = new Vector2(0.5f, 1f);
-            rect.sizeDelta = new Vector2(900f, 120f);
+            rect.sizeDelta = new Vector2(1200f, 100f);
             rect.anchoredPosition = new Vector2(0f, anchoredY);
         }
 
@@ -446,7 +446,7 @@ public class PauseSavePanelController
     {
         string slotName = string.IsNullOrWhiteSpace(slot.slotName) ? "UNKNOWN" : slot.slotName.Trim();
         string savedAt = FormatSavedAt(slot.lastPlayedAt);
-        return $"Slot {slotNumber}\n{slotName}\n{savedAt}";
+        return $"Slot {slotNumber}: {slotName} - {savedAt}";
     }
 
     private static string FormatSavedAt(string lastPlayedAt)
