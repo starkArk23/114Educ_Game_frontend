@@ -52,7 +52,7 @@ public class PauseSavePanelController
         hasLoadedSlots = false;
         isRefreshingSlots = true;
         SetStatus("Loading save slots...");
-        SetButtonsInteractable(false);
+        SetButtonsInteractable(true);
         UpdateSlotLabels();
         pauseMenu.StartCoroutine(RefreshSlots());
     }
@@ -243,7 +243,7 @@ public class PauseSavePanelController
         }));
 
         isRefreshingSlots = false;
-        SetButtonsInteractable(hasLoadedSlots);
+        SetButtonsInteractable(true);
     }
 
     private void OnSlotPressed(int slotNumber)
@@ -256,7 +256,8 @@ public class PauseSavePanelController
 
         if (!hasLoadedSlots)
         {
-            SetStatus("Save slots are unavailable right now. Try reopening the panel.");
+            SetStatus("Retrying save slot load...");
+            pauseMenu.StartCoroutine(RefreshSlots());
             return;
         }
 
