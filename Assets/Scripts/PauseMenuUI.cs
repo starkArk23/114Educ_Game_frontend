@@ -28,9 +28,9 @@ public class PauseMenu : MonoBehaviour
 
         if (Input.GetKeyDown(KeyCode.Escape))
         {
+            // ESC should not close the save panel - only save/back buttons can
             if (savePanelController != null && savePanelController.IsOpen)
             {
-                CloseSavePanel();
                 return;
             }
 
@@ -89,8 +89,8 @@ public class PauseMenu : MonoBehaviour
     {
         isPaused = paused;
 
-        if (!paused)
-            CloseSavePanel();
+        // Always close save panel - only opens on explicit "Save" button click
+        CloseSavePanel();
 
         if (pauseMenuUI != null)
             pauseMenuUI.SetActive(paused);

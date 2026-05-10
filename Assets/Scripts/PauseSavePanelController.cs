@@ -117,6 +117,7 @@ public class PauseSavePanelController
         RectTransform saveRect = saveButton.GetComponent<RectTransform>();
         RectTransform resumeRect = templateButton.GetComponent<RectTransform>();
         saveRect.anchoredPosition = new Vector2(resumeRect.anchoredPosition.x, -300f);
+        saveRect.sizeDelta = new Vector2(800f, saveRect.sizeDelta.y);
         saveRect.SetSiblingIndex(Mathf.Max(0, pauseMenuRect.childCount - 1));
 
         return createdSaveButton;
@@ -152,6 +153,7 @@ public class PauseSavePanelController
             slotRect.anchorMax = new Vector2(0.5f, 1f);
             slotRect.pivot = new Vector2(0.5f, 1f);
             slotRect.anchoredPosition = new Vector2(0f, -180f - (slotIndex * 96f));
+            slotRect.sizeDelta = new Vector2(800f, slotRect.sizeDelta.y);
 
             SetButtonLabel(slotButton, BuildEmptyLabel(slotNumber));
             slotButtons[slotIndex] = slotButton;
@@ -168,6 +170,7 @@ public class PauseSavePanelController
         backRect.anchorMax = new Vector2(0.5f, 1f);
         backRect.pivot = new Vector2(0.5f, 1f);
         backRect.anchoredPosition = new Vector2(0f, -660f);
+        backRect.sizeDelta = new Vector2(800f, backRect.sizeDelta.y);
 
         CreateConfirmationOverlay(templateButton, titleTemplate);
     }
@@ -198,6 +201,7 @@ public class PauseSavePanelController
         confirmButtonRect.anchorMax = new Vector2(0.5f, 1f);
         confirmButtonRect.pivot = new Vector2(0.5f, 1f);
         confirmButtonRect.anchoredPosition = new Vector2(0f, -560f);
+        confirmButtonRect.sizeDelta = new Vector2(800f, confirmButtonRect.sizeDelta.y);
 
         Button cancelButton = UnityEngine.Object.Instantiate(templateButton, confirmRoot.transform);
         cancelButton.name = "CancelOverwriteButton";
@@ -210,6 +214,7 @@ public class PauseSavePanelController
         cancelButtonRect.anchorMax = new Vector2(0.5f, 1f);
         cancelButtonRect.pivot = new Vector2(0.5f, 1f);
         cancelButtonRect.anchoredPosition = new Vector2(0f, -680f);
+        cancelButtonRect.sizeDelta = new Vector2(800f, cancelButtonRect.sizeDelta.y);
 
         confirmRoot.SetActive(false);
     }
@@ -434,7 +439,10 @@ public class PauseSavePanelController
     {
         TMP_Text label = button != null ? button.GetComponentInChildren<TMP_Text>(true) : null;
         if (label != null)
+        {
             label.text = text;
+            label.enableWordWrapping = false;
+        }
     }
 
     private static string BuildEmptyLabel(int slotNumber)
