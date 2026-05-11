@@ -1,19 +1,52 @@
 using UnityEngine;
 
 [RequireComponent(typeof(Collider2D))]
-public class ScriptedEncounterTrigger : MonoBehaviour, IInteractable
+public class ScriptedEncounterTrigger : MonoBehaviour, IInteractable, IQuestMarkerTarget
 {
     [SerializeField] private CyberEventData eventData;
     [SerializeField] private bool triggerOnEnter = false;
     [SerializeField] private bool oneShot = true;
     [SerializeField] private string playerTag = "Player";
+    [SerializeField] private Transform questMarkerAnchor;
+    [SerializeField] private Vector3 questMarkerOffset = new Vector3(0f, 1.5f, 0f);
 
     private bool hasTriggered;
+
+    public bool ShouldShowQuestMarker
+    {
+        get
+        {
+            if (hasTriggered)
+                return false;
+
+            if (eventData == null)
+                return false;
+
+            if (!isActiveAndEnabled || !gameObject.activeInHierarchy)
+                return false;
+
+            EventManager manager = EventManager.Instance;
+            if (manager == null)
+                return true;
+
+            return manager.IsEventAvailable(eventData);
+        }
+    }
+
+    public Transform QuestMarkerAnchor => questMarkerAnchor != null ? questMarkerAnchor : transform;
+    public Vector3 QuestMarkerOffset => questMarkerOffset;
 
     private void Reset()
     {
         Collider2D col = GetComponent<Collider2D>();
         col.isTrigger = true;
+
+        EnsureQuestMarker();
+    }
+
+    private void Awake()
+    {
+        EnsureQuestMarker();
     }
 
     public void Interact()
@@ -60,5 +93,11 @@ public class ScriptedEncounterTrigger : MonoBehaviour, IInteractable
             hasTriggered = true;
             gameObject.SetActive(false);
         }
+    }
+
+    private void EnsureQuestMarker()
+    {
+        if (GetComponent<QuestMarker>() == null)
+            gameObject.AddComponent<QuestMarker>();
     }
 }
