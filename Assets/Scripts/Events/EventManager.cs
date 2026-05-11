@@ -28,6 +28,11 @@ public class EventManager : MonoBehaviour
     public string CurrentEventTitle => currentEvent != null ? currentEvent.title : null;
     public IReadOnlyCollection<string> UnlockedFlags => eventFlags;
 
+    public bool IsEventAvailable(CyberEventData data)
+    {
+        return CanStartEvent(data);
+    }
+
     public void RestoreUnlockedFlags(IEnumerable<string> flags)
     {
         eventFlags.Clear();
