@@ -12,7 +12,7 @@ GameObject:
   - component: {fileID: 7758788604441589796}
   - component: {fileID: 6850307539540316710}
   - component: {fileID: 2689603113879103646}
-  - component: {fileID: 8878962253863501379}
+  - component: {fileID: 4298991927672694784}
   m_Layer: 0
   m_Name: GuyAmbientNPC
   m_TagString: Untagged
@@ -44,7 +44,7 @@ SpriteRenderer:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 693318873389929147}
-  m_Enabled: 1
+  m_Enabled: 0
   m_CastShadows: 0
   m_ReceiveShadows: 0
   m_DynamicOccludee: 1
@@ -168,7 +168,7 @@ BoxCollider2D:
   m_AutoTiling: 0
   m_Size: {x: 1.17, y: 2.46}
   m_EdgeRadius: 0
---- !u!114 &8878962253863501379
+--- !u!114 &4298991927672694784
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -177,9 +177,9 @@ MonoBehaviour:
   m_GameObject: {fileID: 693318873389929147}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 7e7bfd6b9b444424db2e1dac682fea26, type: 3}
+  m_Script: {fileID: 11500000, guid: 791f6e359836d934b83aa401506ec089, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::AmbientNpcWanderer
+  m_EditorClassIdentifier: Assembly-CSharp::AmbientNpcController
   visualProfile: {fileID: 11400000, guid: 0c8cacd4d2668df43acb083c0df50fb8, type: 2}
   animationFramesPerSecondRange: {x: 2.5, y: 3.9}
   moveSpeed: 1.1
