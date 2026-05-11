@@ -8,7 +8,7 @@ public class ScriptedEncounterTrigger : MonoBehaviour, IInteractable, IQuestMark
     [SerializeField] private bool oneShot = true;
     [SerializeField] private string playerTag = "Player";
     [SerializeField] private Transform questMarkerAnchor;
-    [SerializeField] private Vector3 questMarkerOffset = new Vector3(0f, 1.5f, 0f);
+    [SerializeField] private Vector3 questMarkerOffset = new Vector3(0f, 2.1f, 0f);
 
     private bool hasTriggered;
 

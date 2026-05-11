@@ -9,6 +9,8 @@ public class QuestMarker : MonoBehaviour
     [SerializeField] private Sprite customMarkerSprite;
     [SerializeField] private Color markerColor = new Color32(255, 214, 10, 255);
     [SerializeField] private Vector3 fallbackOffset = new Vector3(0f, 1.5f, 0f);
+    [SerializeField] private Vector3 markerScale = new Vector3(1.35f, 1.35f, 1f);
+    [SerializeField] private float minimumMarkerHeightAboveRenderer = 0.35f;
     [SerializeField] private int sortingOrderOffset = 10;
     [SerializeField] private string fallbackSortingLayer = "ActorsFront";
 
@@ -65,9 +67,27 @@ public class QuestMarker : MonoBehaviour
         if (target == null)
             target = GetComponentInChildren<IQuestMarkerTarget>();
 
-        targetRenderer = GetComponent<SpriteRenderer>();
-        if (targetRenderer == null)
-            targetRenderer = GetComponentInParent<SpriteRenderer>();
+        targetRenderer = ResolveTargetRenderer();
+    }
+
+    private SpriteRenderer ResolveTargetRenderer()
+    {
+        SpriteRenderer directRenderer = GetComponent<SpriteRenderer>();
+        if (directRenderer != null && directRenderer.enabled)
+            return directRenderer;
+
+        SpriteRenderer[] childRenderers = GetComponentsInChildren<SpriteRenderer>(true);
+        for (int index = 0; index < childRenderers.Length; index++)
+        {
+            SpriteRenderer candidate = childRenderers[index];
+            if (candidate == null || candidate == directRenderer)
+                continue;
+
+            if (candidate.enabled)
+                return candidate;
+        }
+
+        return GetComponentInParent<SpriteRenderer>();
     }
 
     private void EnsureVisual()
@@ -108,9 +128,13 @@ public class QuestMarker : MonoBehaviour
         Transform anchor = target.QuestMarkerAnchor != null ? target.QuestMarkerAnchor : transform;
         Vector3 offset = target.QuestMarkerOffset != default ? target.QuestMarkerOffset : fallbackOffset;
 
-        markerVisual.position = anchor.position + offset;
+        Vector3 markerPosition = anchor.position + offset;
+        if (targetRenderer != null)
+            markerPosition.y = Mathf.Max(markerPosition.y, targetRenderer.bounds.max.y + minimumMarkerHeightAboveRenderer);
+
+        markerVisual.position = markerPosition;
         markerVisual.rotation = Quaternion.identity;
-        markerVisual.localScale = Vector3.one;
+        markerVisual.localScale = markerScale;
 
         SyncSorting();
     }

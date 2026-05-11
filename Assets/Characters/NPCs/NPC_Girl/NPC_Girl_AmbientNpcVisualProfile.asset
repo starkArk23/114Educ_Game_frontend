@@ -1,0 +1,34 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: fb562b331df6e274e82910934bfaec31, type: 3}
+  m_Name: NPC_Girl_AmbientNpcVisualProfile
+  m_EditorClassIdentifier: Assembly-CSharp::AmbientNpcVisualProfile
+  down:
+    idle: {fileID: -8069418266907540018, guid: 0d4a1b88c18fbb140a4a4d6c80ec9256, type: 3}
+    walkFrames:
+    - {fileID: -5869533719769533445, guid: 5f09f5b15a662024ab03e52724fc2aeb, type: 3}
+    - {fileID: 1660734276652696160, guid: ac5427740a8e35a4fbb2c4b516bece80, type: 3}
+  up:
+    idle: {fileID: -2871531824965327108, guid: 1a5f189537c181e4c960103d93055793, type: 3}
+    walkFrames:
+    - {fileID: 1348400338312150256, guid: 60a260ee83a58194681a3964f93958b0, type: 3}
+    - {fileID: -7881826297010871500, guid: cfd03915c3cd5804fa0e65945e70a68b, type: 3}
+  left:
+    idle: {fileID: 0}
+    walkFrames:
+    - {fileID: -3430763657819663631, guid: 1cb992b4caa1e904fab08ad8d83fecbf, type: 3}
+    - {fileID: 1785850005412508597, guid: 5534a25cb059caf4683c6f8fa95fb94a, type: 3}
+  right:
+    idle: {fileID: 0}
+    walkFrames:
+    - {fileID: -8432953815256954346, guid: 7befafd5329f271489423f305d0c96b1, type: 3}
+    - {fileID: 1461436831695827517, guid: 47f494b907c678e4485e588adc82b3f0, type: 3}
