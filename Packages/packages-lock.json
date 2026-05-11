@@ -1,11 +1,5 @@
 {
   "dependencies": {
-    "com.anklebreaker.unity-mcp": {
-      "version": "file:C:/Users/admin/Downloads/unity-mcp-plugin-main/unity-mcp-plugin-main",
-      "depth": 0,
-      "source": "local",
-      "dependencies": {}
-    },
     "com.unity.2d.animation": {
       "version": "13.0.4",
       "depth": 1,
