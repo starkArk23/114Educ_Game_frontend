@@ -23,12 +23,12 @@ MonoBehaviour:
     - {fileID: 4894598896873864107, guid: fa8d5f187ea1af54aa8f022d8f630eb1, type: 3}
     - {fileID: 8848348980807801979, guid: bd072b976fa9b7647a652922ecc251c5, type: 3}
   left:
-    idle: {fileID: 1337814052093879603, guid: abc98a8d633b2524383483797d9795bb, type: 3}
-    walkFrames:
-    - {fileID: 4484190972622758919, guid: 08cb73e272e7c8c409c5563e602fd4b1, type: 3}
-    - {fileID: -8498045379191092534, guid: e67eac6bdae40de49891cd4c74ca1c6c, type: 3}
-  right:
     idle: {fileID: 4699842155992170130, guid: 6159ac6f7b520f24289b1054fdd37b2b, type: 3}
     walkFrames:
     - {fileID: 6374996004277531703, guid: 2f994e22bf4606a4aa8221ff21a445bf, type: 3}
     - {fileID: -3072848914125503571, guid: 447f6831554659448bf0374ceaf6e795, type: 3}
+  right:
+    idle: {fileID: 1337814052093879603, guid: abc98a8d633b2524383483797d9795bb, type: 3}
+    walkFrames:
+    - {fileID: 4484190972622758919, guid: 08cb73e272e7c8c409c5563e602fd4b1, type: 3}
+    - {fileID: -8498045379191092534, guid: e67eac6bdae40de49891cd4c74ca1c6c, type: 3}
