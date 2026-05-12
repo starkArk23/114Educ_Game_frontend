@@ -502,6 +502,7 @@ MonoBehaviour:
   bodyText: Diagnostic windows flicker across the console. Parts of the system are
     stable, but something still feels off.
   buttonLabel: Continue
+  promptText: Press E to inspect
 --- !u!61 &175794062
 BoxCollider2D:
   m_ObjectHideFlags: 0
@@ -994,6 +995,7 @@ MonoBehaviour:
   bodyText: The recovery bed still holds a faint charge. Whatever restored you here
     was fast and precise.
   buttonLabel: Continue
+  promptText: Press E to inspect
 --- !u!61 &410969509
 BoxCollider2D:
   m_ObjectHideFlags: 0
@@ -1639,6 +1641,9 @@ MonoBehaviour:
   choiceCButton: {fileID: 0}
   choiceDButton: {fileID: 0}
   choiceLogUI: {fileID: 0}
+  dialogueTypeSpeed: 0.02
+  punctuationPause: 0.04
+  linePause: 0.12
 --- !u!4 &710629520
 Transform:
   m_ObjectHideFlags: 0
@@ -1887,6 +1892,7 @@ MonoBehaviour:
   speaker: 
   title: 
   bodyText: 
+  promptText: Press E to check
 --- !u!61 &810501493
 BoxCollider2D:
   m_ObjectHideFlags: 0
@@ -2174,6 +2180,9 @@ MonoBehaviour:
   choiceCButton: {fileID: 647922336}
   choiceDButton: {fileID: 1191093697}
   choiceLogUI: {fileID: 1517339897}
+  dialogueTypeSpeed: 0.02
+  punctuationPause: 0.04
+  linePause: 0.12
 --- !u!114 &980536544
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -2622,6 +2631,7 @@ MonoBehaviour:
   bodyText: Inside are sealed tools and backup patches. Everything is labeled for
     emergencies.
   buttonLabel: Continue
+  promptText: Press E to inspect
 --- !u!61 &1079299639
 BoxCollider2D:
   m_ObjectHideFlags: 0
@@ -3265,6 +3275,8 @@ MonoBehaviour:
   requiredChapterKey: opening
   activeNodeKeys:
   - opening.room_exit_ready
+  promptText: Press E to enter
+  unavailablePromptText: 
 --- !u!61 &1335824259
 BoxCollider2D:
   m_ObjectHideFlags: 0
@@ -3463,6 +3475,7 @@ GameObject:
   - component: {fileID: 1439526963}
   - component: {fileID: 1439526962}
   - component: {fileID: 1439526961}
+  - component: {fileID: 1439526968}
   m_Layer: 0
   m_Name: Player (1)
   m_TagString: Player
@@ -3532,6 +3545,8 @@ MonoBehaviour:
   interactableLayer:
     serializedVersion: 2
     m_Bits: 8
+  interactionKey: 101
+  defaultPromptText: Press E to interact
 --- !u!95 &1439526963
 Animator:
   serializedVersion: 7
@@ -3683,6 +3698,23 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1439526968
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1439526960}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 043f2e7e77e4ad742ab8c679c63e1b15, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PhoneController
+  toggleKey: 102
+  phonePanel: {fileID: 0}
+  phoneTitleText: {fileID: 0}
+  phoneBodyText: {fileID: 0}
+  storyManager: {fileID: 0}
 --- !u!1 &1517339896
 GameObject:
   m_ObjectHideFlags: 0

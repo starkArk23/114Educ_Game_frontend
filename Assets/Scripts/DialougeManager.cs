@@ -1,4 +1,5 @@
 using System;
+using System.Collections;
 using UnityEngine;
 using TMPro;
 using UnityEngine.UI;
@@ -15,8 +16,14 @@ public class DialogueManager : MonoBehaviour
     public Button choiceDButton;
     public ChoiceLogUI choiceLogUI;
 
+    [Header("Typing")]
+    [SerializeField] private float dialogueTypeSpeed = 0.02f;
+    [SerializeField] private float punctuationPause = 0.04f;
+    [SerializeField] private float linePause = 0.12f;
+
     private Vector2 defaultPanelAnchoredPosition;
     private bool hasDefaultPanelPosition;
+    private Coroutine dialogueTypingCoroutine;
 
     public bool HasUsableUi
     {
@@ -56,27 +63,18 @@ public class DialogueManager : MonoBehaviour
         PreparePanel();
 
         SetTitle(scenario.scenarioTitle);
-        dialogueText.text = scenario.dialogueText;
 
-        // Clear listeners
-        ClearButton(choiceAButton);
-        ClearButton(choiceBButton);
-        ClearButton(choiceCButton);
-        ClearButton(choiceDButton);
+        ResetChoices();
 
-        // Hide all first
-        SetButtonActive(choiceAButton, false);
-        SetButtonActive(choiceBButton, false);
-        SetButtonActive(choiceCButton, false);
-        SetButtonActive(choiceDButton, false);
-
-        // Show buttons depending on how many choices exist (2–4 recommended)
         int count = scenario.choices != null ? scenario.choices.Count : 0;
 
-        if (count >= 1) SetupChoiceButton(choiceAButton, scenario.choices[0]);
-        if (count >= 2) SetupChoiceButton(choiceBButton, scenario.choices[1]);
-        if (count >= 3) SetupChoiceButton(choiceCButton, scenario.choices[2]);
-        if (count >= 4) SetupChoiceButton(choiceDButton, scenario.choices[3]);
+        BeginDialogueBody(scenario.scenarioTitle, scenario.dialogueText, () =>
+        {
+            if (count >= 1) SetupChoiceButton(choiceAButton, scenario.choices[0]);
+            if (count >= 2) SetupChoiceButton(choiceBButton, scenario.choices[1]);
+            if (count >= 3) SetupChoiceButton(choiceCButton, scenario.choices[2]);
+            if (count >= 4) SetupChoiceButton(choiceDButton, scenario.choices[3]);
+        });
 
         if (count < 2)
             Debug.LogWarning("Scenario has less than 2 choices. Add at least 2 choices.");
@@ -146,26 +144,16 @@ public class DialogueManager : MonoBehaviour
 
         SetTitle(title);
 
-        if (titleText == null && !string.IsNullOrEmpty(title))
-            dialogueText.text = title + "\n\n" + body;
-        else
-            dialogueText.text = body;
-
-        ClearButton(choiceAButton);
-        ClearButton(choiceBButton);
-        ClearButton(choiceCButton);
-        ClearButton(choiceDButton);
-
-        SetButtonActive(choiceAButton, false);
-        SetButtonActive(choiceBButton, false);
-        SetButtonActive(choiceCButton, false);
-        SetButtonActive(choiceDButton, false);
+        ResetChoices();
 
         int count = choices != null ? Mathf.Min(choices.Length, 4) : 0;
-        if (count >= 1) SetupChoiceButton(choiceAButton, choices[0], 0, onChoiceSelected);
-        if (count >= 2) SetupChoiceButton(choiceBButton, choices[1], 1, onChoiceSelected);
-        if (count >= 3) SetupChoiceButton(choiceCButton, choices[2], 2, onChoiceSelected);
-        if (count >= 4) SetupChoiceButton(choiceDButton, choices[3], 3, onChoiceSelected);
+        BeginDialogueBody(title, body, () =>
+        {
+            if (count >= 1) SetupChoiceButton(choiceAButton, choices[0], 0, onChoiceSelected);
+            if (count >= 2) SetupChoiceButton(choiceBButton, choices[1], 1, onChoiceSelected);
+            if (count >= 3) SetupChoiceButton(choiceCButton, choices[2], 2, onChoiceSelected);
+            if (count >= 4) SetupChoiceButton(choiceDButton, choices[3], 3, onChoiceSelected);
+        });
     }
 
     private void SetupChoiceButton(Button btn, string label, int index, Action<int> onChoiceSelected)
@@ -195,40 +183,113 @@ public class DialogueManager : MonoBehaviour
 
     SetTitle(string.Empty);
 
-    dialogueText.text = text;
+    ResetChoices();
 
-    ClearButton(choiceAButton);
-    ClearButton(choiceBButton);
-    ClearButton(choiceCButton);
-    ClearButton(choiceDButton);
-
-    SetButtonActive(choiceAButton, true);
-    SetButtonActive(choiceBButton, true);
-    SetButtonActive(choiceCButton, false);
-    SetButtonActive(choiceDButton, false);
-
-    TMP_Text choiceALabel = GetButtonLabel(choiceAButton);
-    if (choiceALabel != null)
-        choiceALabel.text = choiceAText;
-
-    TMP_Text choiceBLabel = GetButtonLabel(choiceBButton);
-    if (choiceBLabel != null)
-        choiceBLabel.text = choiceBText;
-
-    choiceAButton.onClick.AddListener(() =>
+    BeginDialogueBody(string.Empty, text, () =>
     {
-        dialoguePanel.SetActive(false);
-        PlayerMovement.RemoveMovementLock("Dialogue");
-        onChoiceA?.Invoke();
-    });
+        SetButtonActive(choiceAButton, true);
+        SetButtonActive(choiceBButton, true);
+        SetButtonActive(choiceCButton, false);
+        SetButtonActive(choiceDButton, false);
 
-    choiceBButton.onClick.AddListener(() =>
-    {
-        dialoguePanel.SetActive(false);
-        PlayerMovement.RemoveMovementLock("Dialogue");
-        onChoiceB?.Invoke();
+        TMP_Text choiceALabel = GetButtonLabel(choiceAButton);
+        if (choiceALabel != null)
+            choiceALabel.text = choiceAText;
+
+        TMP_Text choiceBLabel = GetButtonLabel(choiceBButton);
+        if (choiceBLabel != null)
+            choiceBLabel.text = choiceBText;
+
+        choiceAButton.onClick.AddListener(() =>
+        {
+            dialoguePanel.SetActive(false);
+            PlayerMovement.RemoveMovementLock("Dialogue");
+            onChoiceA?.Invoke();
+        });
+
+        choiceBButton.onClick.AddListener(() =>
+        {
+            dialoguePanel.SetActive(false);
+            PlayerMovement.RemoveMovementLock("Dialogue");
+            onChoiceB?.Invoke();
+        });
     });
 }
+
+    private void ResetChoices()
+    {
+        ClearButton(choiceAButton);
+        ClearButton(choiceBButton);
+        ClearButton(choiceCButton);
+        ClearButton(choiceDButton);
+
+        SetButtonActive(choiceAButton, false);
+        SetButtonActive(choiceBButton, false);
+        SetButtonActive(choiceCButton, false);
+        SetButtonActive(choiceDButton, false);
+    }
+
+    private void BeginDialogueBody(string title, string body, Action onComplete)
+    {
+        EnsureUiReferences();
+
+        if (dialogueText == null)
+        {
+            onComplete?.Invoke();
+            return;
+        }
+
+        if (dialogueTypingCoroutine != null)
+        {
+            StopCoroutine(dialogueTypingCoroutine);
+            dialogueTypingCoroutine = null;
+        }
+
+        string fullText = ComposeBodyText(title, body);
+        if (dialogueTypeSpeed <= 0f)
+        {
+            dialogueText.text = fullText;
+            onComplete?.Invoke();
+            return;
+        }
+
+        dialogueTypingCoroutine = StartCoroutine(TypeDialogueBody(fullText, onComplete));
+    }
+
+    private string ComposeBodyText(string title, string body)
+    {
+        string safeBody = body ?? string.Empty;
+        if (titleText == null && !string.IsNullOrWhiteSpace(title))
+            return title.Trim() + "\n\n" + safeBody;
+
+        return safeBody;
+    }
+
+    private IEnumerator TypeDialogueBody(string fullText, Action onComplete)
+    {
+        dialogueText.text = string.Empty;
+
+        for (int index = 0; index < fullText.Length; index++)
+        {
+            char nextCharacter = fullText[index];
+            dialogueText.text = fullText.Substring(0, index + 1);
+
+            if (nextCharacter == '\n')
+            {
+                yield return new WaitForSeconds(linePause);
+                continue;
+            }
+
+            float delay = dialogueTypeSpeed;
+            if (nextCharacter == '.' || nextCharacter == ',' || nextCharacter == '!' || nextCharacter == '?' || nextCharacter == ':' || nextCharacter == ';')
+                delay += punctuationPause;
+
+            yield return new WaitForSeconds(delay);
+        }
+
+        dialogueTypingCoroutine = null;
+        onComplete?.Invoke();
+    }
 
     private void PreparePanel()
     {

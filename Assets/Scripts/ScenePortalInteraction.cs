@@ -3,7 +3,7 @@ using System.Collections;
 using UnityEngine;
 
 [DisallowMultipleComponent]
-public class ScenePortalInteraction : MonoBehaviour, IInteractable
+public class ScenePortalInteraction : MonoBehaviour, IInteractable, IInteractionPromptProvider
 {
     [SerializeField] private string targetSceneName;
     [SerializeField] private string targetSpawnPointId;
@@ -12,6 +12,8 @@ public class ScenePortalInteraction : MonoBehaviour, IInteractable
     [SerializeField] private StoryManager storyManager;
     [SerializeField] private string requiredChapterKey;
     [SerializeField] private string[] activeNodeKeys = Array.Empty<string>();
+    [SerializeField] private string promptText = "Press E to enter";
+    [SerializeField] private string unavailablePromptText;
 
     private bool requestInFlight;
 
@@ -102,5 +104,17 @@ public class ScenePortalInteraction : MonoBehaviour, IInteractable
             storyManager = FindFirstObjectByType<StoryManager>();
 
         return storyManager;
+    }
+
+    public bool TryGetInteractionPrompt(out string resolvedPromptText)
+    {
+        if (IsAvailable())
+        {
+            resolvedPromptText = string.IsNullOrWhiteSpace(promptText) ? "Press E to enter" : promptText.Trim();
+            return true;
+        }
+
+        resolvedPromptText = string.IsNullOrWhiteSpace(unavailablePromptText) ? string.Empty : unavailablePromptText.Trim();
+        return !string.IsNullOrWhiteSpace(resolvedPromptText);
     }
 }

@@ -2,7 +2,7 @@ using System;
 using UnityEngine;
 
 [DisallowMultipleComponent]
-public class InspectableInteraction : MonoBehaviour, IInteractable
+public class InspectableInteraction : MonoBehaviour, IInteractable, IInteractionPromptProvider
 {
     private const string MovementLockId = "InspectableInteraction";
 
@@ -12,6 +12,7 @@ public class InspectableInteraction : MonoBehaviour, IInteractable
     [TextArea(2, 8)]
     [SerializeField] private string bodyText;
     [SerializeField] private string buttonLabel = "Continue";
+    [SerializeField] private string promptText = "Press E to inspect";
 
     public void Interact()
     {
@@ -44,5 +45,11 @@ public class InspectableInteraction : MonoBehaviour, IInteractable
     {
         GameState.CanPlayerMove = true;
         PlayerMovement.RemoveMovementLock(MovementLockId);
+    }
+
+    public bool TryGetInteractionPrompt(out string resolvedPromptText)
+    {
+        resolvedPromptText = string.IsNullOrWhiteSpace(promptText) ? "Press E to inspect" : promptText.Trim();
+        return true;
     }
 }

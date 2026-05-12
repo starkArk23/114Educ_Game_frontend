@@ -1238,6 +1238,7 @@ MonoBehaviour:
   title: Core Console
   bodyText: A maintenance console scrolls through integrity checks. Avi uses it to
     spot weak signals before they become threats.
+  promptText: Press E to check
 --- !u!61 &74819594
 BoxCollider2D:
   m_ObjectHideFlags: 0
@@ -7632,6 +7633,9 @@ MonoBehaviour:
   choiceCButton: {fileID: 2032161744}
   choiceDButton: {fileID: 510557179}
   choiceLogUI: {fileID: 1384165316}
+  dialogueTypeSpeed: 0.02
+  punctuationPause: 0.04
+  linePause: 0.12
 --- !u!4 &473828646
 Transform:
   m_ObjectHideFlags: 0
@@ -35980,6 +35984,7 @@ MonoBehaviour:
   title: Threat Monitor
   bodyText: The monitor shows low-priority pings for now, but Avi keeps glancing
     back to make sure none of them spike.
+  promptText: Press E to check
 --- !u!61 &1559315189
 BoxCollider2D:
   m_ObjectHideFlags: 0
@@ -83614,6 +83619,9 @@ MonoBehaviour:
   choiceCButton: {fileID: 2032161744}
   choiceDButton: {fileID: 510557179}
   choiceLogUI: {fileID: 1384165316}
+  dialogueTypeSpeed: 0.02
+  punctuationPause: 0.04
+  linePause: 0.12
 --- !u!1 &1825708357
 GameObject:
   m_ObjectHideFlags: 0
@@ -84211,6 +84219,7 @@ MonoBehaviour:
   title: System Anchor
   bodyText: The anchor hums with a steady pulse. Stable states are recorded here
     so the system can recover from bad calls.
+  promptText: Press E to check
 --- !u!61 &1848223731
 BoxCollider2D:
   m_ObjectHideFlags: 0
@@ -85715,6 +85724,7 @@ GameObject:
   - component: {fileID: 1933294296}
   - component: {fileID: 1933294295}
   - component: {fileID: 1933294302}
+  - component: {fileID: 1933294303}
   m_Layer: 0
   m_Name: Player (1)
   m_TagString: Player
@@ -85738,6 +85748,8 @@ MonoBehaviour:
   interactableLayer:
     serializedVersion: 2
     m_Bits: 8
+  interactionKey: 101
+  defaultPromptText: Press E to interact
 --- !u!95 &1933294296
 Animator:
   serializedVersion: 7
@@ -85935,6 +85947,23 @@ BoxCollider2D:
   m_AutoTiling: 0
   m_Size: {x: 1.17, y: 2.46}
   m_EdgeRadius: 0
+--- !u!114 &1933294303
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1933294294}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 043f2e7e77e4ad742ab8c679c63e1b15, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PhoneController
+  toggleKey: 102
+  phonePanel: {fileID: 0}
+  phoneTitleText: {fileID: 0}
+  phoneBodyText: {fileID: 0}
+  storyManager: {fileID: 0}
 --- !u!1 &1952293934
 GameObject:
   m_ObjectHideFlags: 0
