@@ -189,8 +189,22 @@ public class StoryManager : MonoBehaviour
 
     private DialogueManager ResolveDialogueManager()
     {
+        if (dialogueManager != null && dialogueManager.HasUsableUi)
+            return dialogueManager;
+
+        DialogueManager[] managers = FindObjectsByType<DialogueManager>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+        for (int index = 0; index < managers.Length; index++)
+        {
+            DialogueManager candidate = managers[index];
+            if (candidate != null && candidate.HasUsableUi)
+            {
+                dialogueManager = candidate;
+                return dialogueManager;
+            }
+        }
+
         if (dialogueManager == null)
-            dialogueManager = FindFirstObjectByType<DialogueManager>();
+            dialogueManager = FindFirstObjectByType<DialogueManager>(FindObjectsInactive.Include);
 
         return dialogueManager;
     }

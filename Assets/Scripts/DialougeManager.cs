@@ -18,14 +18,25 @@ public class DialogueManager : MonoBehaviour
     private Vector2 defaultPanelAnchoredPosition;
     private bool hasDefaultPanelPosition;
 
+    public bool HasUsableUi
+    {
+        get
+        {
+            EnsureUiReferences();
+            return dialoguePanel != null && dialogueText != null;
+        }
+    }
+
     private void Awake()
     {
         EnsureEventSystem();
+        EnsureUiReferences();
     }
 
     private void Start()
     {
         EnsureEventSystem();
+        EnsureUiReferences();
         CachePanelLayoutDefaults();
 
         if (dialoguePanel != null)
@@ -121,6 +132,8 @@ public class DialogueManager : MonoBehaviour
     }
     public void Show(string title, string body, string[] choices, Action<int> onChoiceSelected)
     {
+        EnsureUiReferences();
+
         if (dialoguePanel == null || dialogueText == null)
         {
             Debug.LogError("Show: dialoguePanel or dialogueText is NULL");
@@ -177,6 +190,7 @@ public class DialogueManager : MonoBehaviour
 {
     PlayerMovement.AddMovementLock("Dialogue");
     EnsureEventSystem();
+        EnsureUiReferences();
     PreparePanel();
 
     SetTitle(string.Empty);
@@ -218,6 +232,8 @@ public class DialogueManager : MonoBehaviour
 
     private void PreparePanel()
     {
+        EnsureUiReferences();
+
         if (dialoguePanel == null)
             return;
 
@@ -235,6 +251,8 @@ public class DialogueManager : MonoBehaviour
 
     private void CachePanelLayoutDefaults()
     {
+        EnsureUiReferences();
+
         if (hasDefaultPanelPosition || dialoguePanel == null)
             return;
 
@@ -257,6 +275,60 @@ public class DialogueManager : MonoBehaviour
     private TMP_Text GetButtonLabel(Button btn)
     {
         return btn == null ? null : btn.GetComponentInChildren<TMP_Text>(true);
+    }
+
+    private void EnsureUiReferences()
+    {
+        if (dialoguePanel == null)
+        {
+            GameObject panel = FindNamedChild("DialoguePanel");
+            if (panel != null)
+                dialoguePanel = panel;
+        }
+
+        if (titleText == null)
+            titleText = FindComponentByName<TMP_Text>("TitleText");
+
+        if (dialogueText == null)
+            dialogueText = FindComponentByName<TMP_Text>("DialogueText");
+
+        if (choiceAButton == null)
+            choiceAButton = FindComponentByName<Button>("ChoiceA");
+
+        if (choiceBButton == null)
+            choiceBButton = FindComponentByName<Button>("ChoiceB");
+
+        if (choiceCButton == null)
+            choiceCButton = FindComponentByName<Button>("ChoiceC");
+
+        if (choiceDButton == null)
+            choiceDButton = FindComponentByName<Button>("ChoiceD");
+
+        if (choiceLogUI == null)
+            choiceLogUI = FindFirstObjectByType<ChoiceLogUI>(FindObjectsInactive.Include);
+    }
+
+    private static GameObject FindNamedChild(string objectName)
+    {
+        GameObject direct = GameObject.Find(objectName);
+        if (direct != null)
+            return direct;
+
+        Transform[] transforms = FindObjectsByType<Transform>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+        for (int index = 0; index < transforms.Length; index++)
+        {
+            Transform candidate = transforms[index];
+            if (candidate != null && string.Equals(candidate.name, objectName, StringComparison.Ordinal))
+                return candidate.gameObject;
+        }
+
+        return null;
+    }
+
+    private static T FindComponentByName<T>(string objectName) where T : Component
+    {
+        GameObject target = FindNamedChild(objectName);
+        return target != null ? target.GetComponent<T>() : null;
     }
 
     private static void EnsureEventSystem()
