@@ -850,6 +850,14 @@ public class GameSession : MonoBehaviour
 
     private static string ExtractError(UnityWebRequest request)
     {
+        if (request == null)
+            return $"Unable to reach the backend at {DefaultApiBaseUrl}. Start the backend server and try again.";
+
+        if (request.result == UnityWebRequest.Result.ConnectionError)
+        {
+            return $"Unable to reach the backend at {DefaultApiBaseUrl}. Start the backend server on port 4000 and try again.";
+        }
+
         string body = request.downloadHandler != null ? request.downloadHandler.text : string.Empty;
         if (!string.IsNullOrWhiteSpace(body))
         {
@@ -867,6 +875,8 @@ public class GameSession : MonoBehaviour
             return body;
         }
 
-        return string.IsNullOrWhiteSpace(request.error) ? "Unable to reach the backend." : request.error;
+        return string.IsNullOrWhiteSpace(request.error)
+            ? $"Unable to reach the backend at {DefaultApiBaseUrl}."
+            : request.error;
     }
 }
