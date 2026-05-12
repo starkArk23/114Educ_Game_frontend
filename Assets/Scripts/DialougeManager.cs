@@ -2,6 +2,7 @@ using System;
 using UnityEngine;
 using TMPro;
 using UnityEngine.UI;
+using UnityEngine.EventSystems;
 public class DialogueManager : MonoBehaviour
 {
     [Header("UI")]
@@ -17,8 +18,14 @@ public class DialogueManager : MonoBehaviour
     private Vector2 defaultPanelAnchoredPosition;
     private bool hasDefaultPanelPosition;
 
+    private void Awake()
+    {
+        EnsureEventSystem();
+    }
+
     private void Start()
     {
+        EnsureEventSystem();
         CachePanelLayoutDefaults();
 
         if (dialoguePanel != null)
@@ -120,6 +127,8 @@ public class DialogueManager : MonoBehaviour
             return;
         }
 
+        EnsureEventSystem();
+
         PreparePanel();
 
         SetTitle(title);
@@ -167,6 +176,7 @@ public class DialogueManager : MonoBehaviour
     System.Action onChoiceA, System.Action onChoiceB)
 {
     PlayerMovement.AddMovementLock("Dialogue");
+    EnsureEventSystem();
     PreparePanel();
 
     SetTitle(string.Empty);
@@ -247,5 +257,41 @@ public class DialogueManager : MonoBehaviour
     private TMP_Text GetButtonLabel(Button btn)
     {
         return btn == null ? null : btn.GetComponentInChildren<TMP_Text>(true);
+    }
+
+    private static void EnsureEventSystem()
+    {
+        if (FindFirstObjectByType<EventSystem>() != null)
+            return;
+
+        GameObject root = new GameObject("EventSystem");
+        root.AddComponent<EventSystem>();
+
+        Type inputModuleType = ResolveInputModuleType();
+        if (inputModuleType != null && typeof(BaseInputModule).IsAssignableFrom(inputModuleType))
+        {
+            root.AddComponent(inputModuleType);
+            return;
+        }
+
+        root.AddComponent<StandaloneInputModule>();
+    }
+
+    private static Type ResolveInputModuleType()
+    {
+        Type inputSystemType = Type.GetType("UnityEngine.InputSystem.UI.InputSystemUIInputModule, Unity.InputSystem");
+        if (inputSystemType != null)
+            return inputSystemType;
+
+        AppDomain domain = AppDomain.CurrentDomain;
+        var assemblies = domain.GetAssemblies();
+        for (int index = 0; index < assemblies.Length; index++)
+        {
+            Type candidate = assemblies[index].GetType("UnityEngine.InputSystem.UI.InputSystemUIInputModule");
+            if (candidate != null)
+                return candidate;
+        }
+
+        return null;
     }
 }

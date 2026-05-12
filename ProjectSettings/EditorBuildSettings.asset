@@ -17,6 +17,12 @@ EditorBuildSettings:
   - enabled: 1
     path: Assets/Scenes/SystemCoreScene.unity
     guid: 26779f865963bac4d8187b9125a419a2
+  - enabled: 1
+    path: Assets/Scenes/CoreSystemDreamScene.unity
+    guid: 8ddcb2cb02794ed45b37ce34225e9ab9
+  - enabled: 1
+    path: Assets/Scenes/RoomScene.unity
+    guid: 6158355912cb8524294552e894cc2cff
   m_configObjects:
     com.unity.dt.app-ui: {fileID: 11400000, guid: 1b1c20d82303e4b5781c3ef50ac1449f, type: 2}
     com.unity.input.settings.actions: {fileID: -944628639613478452, guid: 3590b91b4603b465dbb4216d601bff33, type: 3}
