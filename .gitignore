@@ -55,4 +55,6 @@ InitTestScene*.unity*
 /[Aa]ssets/Unity.VisualScripting.Generated/VisualScripting.Core/Property Providers.meta
 /[Aa]ssets/[Ii]nit[Tt]est[Ss]cene*.unity*
 /ProjectSettings/Packages/com.unity.ai.assistant/
+/[Vv][Ss][Cc][Oo][Dd][Ee]/mcp.json
 /imported_changes/
+/Assets/unity-mcp-plugin-main/unity-mcp-plugin-main/
