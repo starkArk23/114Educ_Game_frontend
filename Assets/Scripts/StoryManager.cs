@@ -15,6 +15,9 @@ public class StoryManager : MonoBehaviour
     private List<GameSession.StoryChoiceDetail> currentChoices = new List<GameSession.StoryChoiceDetail>();
     private bool requestInFlight;
 
+    public string CurrentNodeKey => currentNode?.nodeKey ?? string.Empty;
+    public string CurrentChapterKey => currentNode?.chapterKey ?? string.Empty;
+
     private void OnEnable()
     {
         if (autoStartOnEnable)

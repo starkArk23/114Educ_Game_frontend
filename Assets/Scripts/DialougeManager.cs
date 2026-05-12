@@ -14,8 +14,13 @@ public class DialogueManager : MonoBehaviour
     public Button choiceDButton;
     public ChoiceLogUI choiceLogUI;
 
+    private Vector2 defaultPanelAnchoredPosition;
+    private bool hasDefaultPanelPosition;
+
     private void Start()
     {
+        CachePanelLayoutDefaults();
+
         if (dialoguePanel != null)
             dialoguePanel.SetActive(false);
     }
@@ -30,16 +35,9 @@ public class DialogueManager : MonoBehaviour
         }
 
         PlayerMovement.AddMovementLock("Dialogue");
-        dialoguePanel.SetActive(true);
+        PreparePanel();
 
-        // Keep your earlier panel-fix safety
-        var cg = dialoguePanel.GetComponent<CanvasGroup>();
-        if (cg != null) cg.alpha = 1f;
-
-        var rt = dialoguePanel.GetComponent<RectTransform>();
-        if (rt != null) rt.anchoredPosition = Vector2.zero;
-
-        // Set dialogue
+        SetTitle(scenario.scenarioTitle);
         dialogueText.text = scenario.dialogueText;
 
         // Clear listeners
@@ -75,7 +73,7 @@ public class DialogueManager : MonoBehaviour
         SetButtonActive(btn, true);
 
         // Set label text
-        var tmp = btn.GetComponentInChildren<TMP_Text>();
+        var tmp = GetButtonLabel(btn);
         if (tmp != null) tmp.text = choice.choiceText;
 
         btn.onClick.AddListener(() =>
@@ -122,16 +120,9 @@ public class DialogueManager : MonoBehaviour
             return;
         }
 
-        dialoguePanel.SetActive(true);
+        PreparePanel();
 
-        var cg = dialoguePanel.GetComponent<CanvasGroup>();
-        if (cg != null) cg.alpha = 1f;
-
-        var rt = dialoguePanel.GetComponent<RectTransform>();
-        if (rt != null) rt.anchoredPosition = Vector2.zero;
-
-        if (titleText != null)
-            titleText.text = title;
+        SetTitle(title);
 
         if (titleText == null && !string.IsNullOrEmpty(title))
             dialogueText.text = title + "\n\n" + body;
@@ -162,7 +153,7 @@ public class DialogueManager : MonoBehaviour
 
         SetButtonActive(btn, true);
 
-        var tmp = btn.GetComponentInChildren<TMP_Text>();
+        var tmp = GetButtonLabel(btn);
         if (tmp != null)
             tmp.text = label;
 
@@ -176,13 +167,9 @@ public class DialogueManager : MonoBehaviour
     System.Action onChoiceA, System.Action onChoiceB)
 {
     PlayerMovement.AddMovementLock("Dialogue");
-    dialoguePanel.SetActive(true);
+    PreparePanel();
 
-    var cg = dialoguePanel.GetComponent<CanvasGroup>();
-    if (cg != null) cg.alpha = 1f;
-
-    var rt = dialoguePanel.GetComponent<RectTransform>();
-    if (rt != null) rt.anchoredPosition = Vector2.zero;
+    SetTitle(string.Empty);
 
     dialogueText.text = text;
 
@@ -196,8 +183,13 @@ public class DialogueManager : MonoBehaviour
     SetButtonActive(choiceCButton, false);
     SetButtonActive(choiceDButton, false);
 
-    choiceAButton.GetComponentInChildren<TMP_Text>().text = choiceAText;
-    choiceBButton.GetComponentInChildren<TMP_Text>().text = choiceBText;
+    TMP_Text choiceALabel = GetButtonLabel(choiceAButton);
+    if (choiceALabel != null)
+        choiceALabel.text = choiceAText;
+
+    TMP_Text choiceBLabel = GetButtonLabel(choiceBButton);
+    if (choiceBLabel != null)
+        choiceBLabel.text = choiceBText;
 
     choiceAButton.onClick.AddListener(() =>
     {
@@ -213,4 +205,47 @@ public class DialogueManager : MonoBehaviour
         onChoiceB?.Invoke();
     });
 }
+
+    private void PreparePanel()
+    {
+        if (dialoguePanel == null)
+            return;
+
+        CachePanelLayoutDefaults();
+        dialoguePanel.SetActive(true);
+
+        CanvasGroup canvasGroup = dialoguePanel.GetComponent<CanvasGroup>();
+        if (canvasGroup != null)
+            canvasGroup.alpha = 1f;
+
+        RectTransform panelRect = dialoguePanel.GetComponent<RectTransform>();
+        if (panelRect != null && hasDefaultPanelPosition)
+            panelRect.anchoredPosition = defaultPanelAnchoredPosition;
+    }
+
+    private void CachePanelLayoutDefaults()
+    {
+        if (hasDefaultPanelPosition || dialoguePanel == null)
+            return;
+
+        RectTransform panelRect = dialoguePanel.GetComponent<RectTransform>();
+        if (panelRect == null)
+            return;
+
+        defaultPanelAnchoredPosition = panelRect.anchoredPosition;
+        hasDefaultPanelPosition = true;
+    }
+
+    private void SetTitle(string title)
+    {
+        if (titleText == null)
+            return;
+
+        titleText.text = string.IsNullOrWhiteSpace(title) ? "SECURE CHANNEL" : title.Trim();
+    }
+
+    private TMP_Text GetButtonLabel(Button btn)
+    {
+        return btn == null ? null : btn.GetComponentInChildren<TMP_Text>(true);
+    }
 }

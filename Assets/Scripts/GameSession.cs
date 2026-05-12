@@ -430,9 +430,12 @@ public class GameSession : MonoBehaviour
 
     public IEnumerator GetCurrentStoryNode(string startNodeKey, Action<StoryNodeDetail, string> onComplete)
     {
-        if (!HasActiveSaveSlot)
+        string saveSlotError = null;
+        yield return StartCoroutine(EnsureActiveSaveSlot(error => saveSlotError = error));
+
+        if (!string.IsNullOrEmpty(saveSlotError))
         {
-            onComplete?.Invoke(null, "Load or create a save slot before starting the story.");
+            onComplete?.Invoke(null, saveSlotError);
             yield break;
         }
 
@@ -449,9 +452,12 @@ public class GameSession : MonoBehaviour
 
     public IEnumerator ContinueStoryNode(string nodeKey, Action<StoryNodeDetail, string> onComplete)
     {
-        if (!HasActiveSaveSlot)
+        string saveSlotError = null;
+        yield return StartCoroutine(EnsureActiveSaveSlot(error => saveSlotError = error));
+
+        if (!string.IsNullOrEmpty(saveSlotError))
         {
-            onComplete?.Invoke(null, "Load or create a save slot before continuing the story.");
+            onComplete?.Invoke(null, saveSlotError);
             yield break;
         }
 
@@ -469,9 +475,12 @@ public class GameSession : MonoBehaviour
 
     public IEnumerator SubmitStoryChoice(string nodeKey, string choiceId, Action<StoryNodeDetail, string> onComplete)
     {
-        if (!HasActiveSaveSlot)
+        string saveSlotError = null;
+        yield return StartCoroutine(EnsureActiveSaveSlot(error => saveSlotError = error));
+
+        if (!string.IsNullOrEmpty(saveSlotError))
         {
-            onComplete?.Invoke(null, "Load or create a save slot before making story choices.");
+            onComplete?.Invoke(null, saveSlotError);
             yield break;
         }
 
@@ -490,9 +499,12 @@ public class GameSession : MonoBehaviour
 
     public IEnumerator RegisterStoryInteraction(string interactionId, string groupKey, Action<StoryNodeDetail, string> onComplete)
     {
-        if (!HasActiveSaveSlot)
+        string saveSlotError = null;
+        yield return StartCoroutine(EnsureActiveSaveSlot(error => saveSlotError = error));
+
+        if (!string.IsNullOrEmpty(saveSlotError))
         {
-            onComplete?.Invoke(null, "Load or create a save slot before progressing story interactions.");
+            onComplete?.Invoke(null, saveSlotError);
             yield break;
         }
 
@@ -512,6 +524,53 @@ public class GameSession : MonoBehaviour
     public void ClearPendingRestore()
     {
         pendingRestore = null;
+    }
+
+    private IEnumerator EnsureActiveSaveSlot(Action<string> onComplete)
+    {
+        if (HasActiveSaveSlot)
+        {
+            onComplete?.Invoke(null);
+            yield break;
+        }
+
+        List<SaveSlotInfo> slots = null;
+        string slotsError = null;
+        yield return StartCoroutine(ListSaveSlots((availableSlots, error) =>
+        {
+            slots = availableSlots;
+            slotsError = error;
+        }));
+
+        if (!string.IsNullOrEmpty(slotsError))
+        {
+            onComplete?.Invoke(slotsError);
+            yield break;
+        }
+
+        SaveSlotInfo existingSlot = null;
+        if (slots != null && slots.Count > 0)
+        {
+            existingSlot = slots[0];
+            for (int index = 1; index < slots.Count; index++)
+            {
+                SaveSlotInfo candidate = slots[index];
+                if (candidate != null && (existingSlot == null || candidate.slotNumber < existingSlot.slotNumber))
+                    existingSlot = candidate;
+            }
+        }
+
+        if (existingSlot != null && !string.IsNullOrWhiteSpace(existingSlot.id))
+        {
+            string loadError = null;
+            yield return StartCoroutine(LoadSaveSlot(existingSlot.id, (_slot, error) => loadError = error));
+            onComplete?.Invoke(loadError);
+            yield break;
+        }
+
+        string createError = null;
+        yield return StartCoroutine(SaveToSlot(1, operatorName, (_slot, error) => createError = error));
+        onComplete?.Invoke(createError);
     }
 
     private IEnumerator EnsurePlayerRegistered(Action<string> onComplete)
