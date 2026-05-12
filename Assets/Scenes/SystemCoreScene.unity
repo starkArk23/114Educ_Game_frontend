@@ -510,6 +510,51 @@ SpriteRenderer:
   m_SpriteTileMode: 0
   m_WasSpriteAssigned: 1
   m_SpriteSortPoint: 0
+--- !u!1 &195075519
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 195075521}
+  - component: {fileID: 195075520}
+  m_Layer: 0
+  m_Name: SystemCoreHallwaySpawn
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &195075520
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 195075519}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e0528faf29d2fdd4c86e6643eb91a2a6, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::SceneSpawnPoint
+  spawnPointId: FromHallway
+--- !u!4 &195075521
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 195075519}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 3.45, y: -0.45, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &219703778
 GameObject:
   m_ObjectHideFlags: 0
@@ -957,7 +1002,7 @@ Camera:
   m_Enabled: 1
   serializedVersion: 2
   m_ClearFlags: 2
-  m_BackGroundColor: {r: 0.19215687, g: 0.3019608, b: 0.4745098, a: 0}
+  m_BackGroundColor: {r: 0, g: 0, b: 0, a: 1}
   m_projectionMatrixMode: 1
   m_GateFitMode: 2
   m_FOVAxisMode: 0
@@ -1963,8 +2008,8 @@ Transform:
   m_GameObject: {fileID: 608559299}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 3.7, y: -0.2, z: 0}
-  m_LocalScale: {x: 0.4, y: 0.4, z: 0.75}
+  m_LocalPosition: {x: -5.02, y: -1.82, z: 0}
+  m_LocalScale: {x: 1.05, y: 1.05, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 1853778216}
@@ -1996,7 +2041,7 @@ Transform:
   m_GameObject: {fileID: 799262697}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: -2.2000003, y: -0.54999995, z: 0}
+  m_LocalPosition: {x: -4.2166667, y: -0.099999905, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -2183,6 +2228,7 @@ GameObject:
   - component: {fileID: 887141658}
   - component: {fileID: 887141657}
   - component: {fileID: 887141656}
+  - component: {fileID: 887141660}
   m_Layer: 3
   m_Name: CoreSystemExit
   m_TagString: Untagged
@@ -2299,7 +2345,7 @@ BoxCollider2D:
   m_CallbackLayers:
     serializedVersion: 2
     m_Bits: 4294967295
-  m_IsTrigger: 0
+  m_IsTrigger: 1
   m_UsedByEffector: 0
   m_CompositeOperation: 0
   m_CompositeOrder: 0
@@ -2315,6 +2361,21 @@ BoxCollider2D:
   m_AutoTiling: 0
   m_Size: {x: 0.8, y: 1.8}
   m_EdgeRadius: 0
+--- !u!114 &887141660
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 887141654}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 93c2c9bf8d61a814dbeb20e9f388bcd9, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::AutoSceneExitTrigger
+  targetSceneName: HallwayScene
+  targetSpawnPointId: FromSystemCore
+  playerTag: Player
 --- !u!1 &890239172
 GameObject:
   m_ObjectHideFlags: 0
@@ -2431,6 +2492,16 @@ MonoBehaviour:
     sprite: {fileID: -6252058706133294294, guid: 4834b8739bd4ccd419af227a82dee80b, type: 3}
   - exactCyberStatus: 0
     sprite: {fileID: -2004582417804557287, guid: 4834b8739bd4ccd419af227a82dee80b, type: 3}
+  exactValueText: {fileID: 0}
+  exactValueOffset: {x: 0, y: 18}
+  exactValueFormat: '{0}/100'
+  deltaPopupText: {fileID: 0}
+  deltaPopupOffset: {x: 0, y: 48}
+  deltaPopupDuration: 0.9
+  deltaPopupRise: 22
+  positiveDeltaColor: {r: 0.3, g: 1, b: 0.45, a: 1}
+  negativeDeltaColor: {r: 1, g: 0.32, b: 0.32, a: 1}
+  suppressSaveSystemPopup: 1
 --- !u!114 &910530976
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -2812,6 +2883,7 @@ MonoBehaviour:
   choiceLogUI: {fileID: 0}
   autoStartOnEnable: 1
   startNodeKey: opening.wake
+  mentorEntranceCameraHold: 0.15
 --- !u!114 &973113200
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -6393,3 +6465,4 @@ SceneRoots:
   - {fileID: 890239173}
   - {fileID: 1684459713}
   - {fileID: 608559302}
+  - {fileID: 195075521}

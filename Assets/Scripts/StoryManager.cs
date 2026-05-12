@@ -5,15 +5,18 @@ using UnityEngine;
 public class StoryManager : MonoBehaviour
 {
     private const string MovementLockId = "StoryDialogue";
+    private const string MentorEntranceNodeKey = "opening.mentor_arrives";
 
     [SerializeField] private DialogueManager dialogueManager;
     [SerializeField] private ChoiceLogUI choiceLogUI;
     [SerializeField] private bool autoStartOnEnable;
     [SerializeField] private string startNodeKey;
+    [SerializeField] private float mentorEntranceCameraHold = 0.15f;
 
     private GameSession.StoryNodeDetail currentNode;
     private List<GameSession.StoryChoiceDetail> currentChoices = new List<GameSession.StoryChoiceDetail>();
     private bool requestInFlight;
+    private Coroutine presentationRoutine;
 
     public string CurrentNodeKey => currentNode?.nodeKey ?? string.Empty;
     public string CurrentChapterKey => currentNode?.chapterKey ?? string.Empty;
@@ -80,7 +83,7 @@ public class StoryManager : MonoBehaviour
 
             if (advancedNode)
             {
-                PresentNode(node);
+                QueueNodePresentation(node);
                 return;
             }
 
@@ -107,16 +110,26 @@ public class StoryManager : MonoBehaviour
             return;
         }
 
-        PresentNode(node);
+        QueueNodePresentation(node);
     }
 
-    private void PresentNode(GameSession.StoryNodeDetail node)
+    private void QueueNodePresentation(GameSession.StoryNodeDetail node)
+    {
+        if (presentationRoutine != null)
+            StopCoroutine(presentationRoutine);
+
+        presentationRoutine = StartCoroutine(PresentNodeRoutine(node));
+    }
+
+    private System.Collections.IEnumerator PresentNodeRoutine(GameSession.StoryNodeDetail node)
     {
         currentNode = node;
         currentChoices = node.choices ?? new List<GameSession.StoryChoiceDetail>();
 
         if (node.gateProgress != null && choiceLogUI != null)
             choiceLogUI.Show($"Progress: {node.gateProgress.currentCount}/{node.gateProgress.requiredCount}");
+
+        yield return WaitForPresentationGate(node);
 
         if (currentChoices.Count > 0)
         {
@@ -130,16 +143,59 @@ public class StoryManager : MonoBehaviour
             }
 
             ShowDialogue(GetNodeTitle(node), node.bodyText, labels, OnDialogueSelection);
-            return;
+            presentationRoutine = null;
+            yield break;
         }
 
         if (node.canContinue)
         {
             ShowDialogue(GetNodeTitle(node), node.bodyText, new[] { "Continue" }, _ => ContinueCurrentNode());
-            return;
+            presentationRoutine = null;
+            yield break;
         }
 
         ShowDialogue(GetNodeTitle(node), node.bodyText, new[] { node.endChapter ? "Close" : "Continue" }, _ => CloseStoryDialogue());
+        presentationRoutine = null;
+    }
+
+    private System.Collections.IEnumerator WaitForPresentationGate(GameSession.StoryNodeDetail node)
+    {
+        if (node == null || !string.Equals(node.nodeKey, MentorEntranceNodeKey, StringComparison.Ordinal))
+            yield break;
+
+        StoryNpcEntranceController mentorEntrance = ResolveEntranceController(node.nodeKey);
+        if (mentorEntrance == null || mentorEntrance.HasCompletedEntrance)
+            yield break;
+
+        LockMovement();
+
+        CameraFocusController focusController = FindFirstObjectByType<CameraFocusController>();
+        if (focusController != null)
+            focusController.SetFocusTarget(mentorEntrance.transform, true);
+
+        yield return new WaitUntil(() => mentorEntrance == null || mentorEntrance.HasCompletedEntrance);
+
+        if (mentorEntranceCameraHold > 0f)
+            yield return new WaitForSeconds(mentorEntranceCameraHold);
+
+        if (focusController != null)
+            focusController.ClearFocusTarget(false);
+    }
+
+    private StoryNpcEntranceController ResolveEntranceController(string nodeKey)
+    {
+        StoryNpcEntranceController[] controllers = FindObjectsByType<StoryNpcEntranceController>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+        for (int index = 0; index < controllers.Length; index++)
+        {
+            StoryNpcEntranceController controller = controllers[index];
+            if (controller == null)
+                continue;
+
+            if (string.Equals(controller.EntranceNodeKey, nodeKey, StringComparison.Ordinal))
+                return controller;
+        }
+
+        return null;
     }
 
     private void OnDialogueSelection(int selectionIndex)
@@ -182,9 +238,14 @@ public class StoryManager : MonoBehaviour
             return;
         }
 
+        LockMovement();
+        manager.Show(title, bodyText, choices, onChoiceSelected);
+    }
+
+    private void LockMovement()
+    {
         PlayerMovement.AddMovementLock(MovementLockId);
         GameState.CanPlayerMove = false;
-        manager.Show(title, bodyText, choices, onChoiceSelected);
     }
 
     private DialogueManager ResolveDialogueManager()

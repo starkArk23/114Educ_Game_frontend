@@ -4,6 +4,8 @@ using UnityEngine;
 [DisallowMultipleComponent]
 public class StoryNpcEntranceController : MonoBehaviour
 {
+    public event Action EntranceCompleted;
+
     [Header("Story")]
     [SerializeField] private StoryManager storyManager;
     [SerializeField] private string requiredChapterKey = "opening";
@@ -26,6 +28,12 @@ public class StoryNpcEntranceController : MonoBehaviour
     private bool entranceCompleted;
     private Vector2 facingDirection = Vector2.down;
     private float animationTimeOffset;
+    private Vector3 entranceWorldPosition;
+    private Vector3 idleWorldPosition;
+
+    public string EntranceNodeKey => entranceNodeKey;
+    public bool HasCompletedEntrance => entranceCompleted;
+    public bool IsEntranceInProgress => hasStartedEntrance && !entranceCompleted;
 
     private void Awake()
     {
@@ -33,9 +41,9 @@ public class StoryNpcEntranceController : MonoBehaviour
             spriteRenderer = GetComponentInChildren<SpriteRenderer>(true);
 
         animationTimeOffset = UnityEngine.Random.Range(0f, 100f);
+        CacheMotionAnchors();
 
-        if (entrancePoint != null)
-            transform.position = entrancePoint.position;
+        transform.position = entranceWorldPosition;
 
         if (hideUntilTriggered)
             SetVisible(false);
@@ -72,8 +80,8 @@ public class StoryNpcEntranceController : MonoBehaviour
         if (!entranceCompleted)
             isMoving = UpdateEntranceMotion(currentNodeKey);
 
-        if (!isMoving && idlePoint != null)
-            transform.position = idlePoint.position;
+        if (!isMoving)
+            transform.position = idleWorldPosition;
 
         UpdateVisual(isMoving);
     }
@@ -82,31 +90,29 @@ public class StoryNpcEntranceController : MonoBehaviour
     {
         if (!string.Equals(currentNodeKey, entranceNodeKey, StringComparison.Ordinal))
         {
-            if (idlePoint != null)
-                transform.position = idlePoint.position;
+            transform.position = idleWorldPosition;
 
             hasStartedEntrance = true;
-            entranceCompleted = true;
+            CompleteEntrance();
             facingDirection = idleFacingDirection == Vector2.zero ? Vector2.down : idleFacingDirection.normalized;
             return false;
         }
 
         if (idlePoint == null)
         {
-            entranceCompleted = true;
+            CompleteEntrance();
             facingDirection = idleFacingDirection == Vector2.zero ? Vector2.down : idleFacingDirection.normalized;
             return false;
         }
 
         if (!hasStartedEntrance)
         {
-            if (entrancePoint != null)
-                transform.position = entrancePoint.position;
+            transform.position = entranceWorldPosition;
 
             hasStartedEntrance = true;
         }
 
-        Vector3 targetPosition = idlePoint.position;
+        Vector3 targetPosition = idleWorldPosition;
         Vector3 currentPosition = transform.position;
         Vector3 delta = targetPosition - currentPosition;
         float remainingDistance = delta.magnitude;
@@ -114,7 +120,7 @@ public class StoryNpcEntranceController : MonoBehaviour
         if (remainingDistance <= 0.01f)
         {
             transform.position = targetPosition;
-            entranceCompleted = true;
+            CompleteEntrance();
             facingDirection = idleFacingDirection == Vector2.zero ? Vector2.down : idleFacingDirection.normalized;
             return false;
         }
@@ -169,6 +175,21 @@ public class StoryNpcEntranceController : MonoBehaviour
             storyManager = FindFirstObjectByType<StoryManager>();
 
         return storyManager;
+    }
+
+    private void CacheMotionAnchors()
+    {
+        entranceWorldPosition = entrancePoint != null ? entrancePoint.position : transform.position;
+        idleWorldPosition = idlePoint != null ? idlePoint.position : entranceWorldPosition;
+    }
+
+    private void CompleteEntrance()
+    {
+        if (entranceCompleted)
+            return;
+
+        entranceCompleted = true;
+        EntranceCompleted?.Invoke();
     }
 
     private void SetVisible(bool visible)
