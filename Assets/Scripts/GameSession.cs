@@ -13,6 +13,24 @@ using UnityEngine.SceneManagement;
 public class GameSession : MonoBehaviour
 {
     [Serializable]
+    public struct CyberStatusChange
+    {
+        public int previousValue;
+        public int currentValue;
+        public int delta;
+        public string source;
+        public string reason;
+    }
+
+    [Serializable]
+    public struct CyberStatusEffect
+    {
+        public int delta;
+        public string source;
+        public string reason;
+    }
+
+    [Serializable]
     public class SaveSlotInfo
     {
         public string id;
@@ -70,7 +88,44 @@ public class GameSession : MonoBehaviour
         public Dictionary<string, object> sessionState;
     }
 
+    [Serializable]
+    public class StoryChoiceDetail
+    {
+        public string id;
+        public string label;
+        public int trustTokenCost;
+        public string outcomeText;
+    }
+
+    [Serializable]
+    public class StoryGateProgressDetail
+    {
+        public string groupKey;
+        public int currentCount;
+        public int requiredCount;
+    }
+
+    [Serializable]
+    public class StoryNodeDetail
+    {
+        public string chapterKey;
+        public string nodeKey;
+        public string speaker;
+        public string title;
+        public string bodyText;
+        public bool canContinue;
+        public List<StoryChoiceDetail> choices;
+        public StoryGateProgressDetail gateProgress;
+        public int currentCyberStatus;
+        public int currentTrustTokens;
+        public List<string> unlockedFlags;
+        public bool endChapter;
+    }
+
     private const string DefaultApiBaseUrl = "http://localhost:4000/api";
+    public const int CyberStatusStep = 5;
+    public const int MaxCyberStatus = 100;
+    public const int MinCyberStatus = 0;
 
     private static GameSession instance;
 
@@ -99,8 +154,10 @@ public class GameSession : MonoBehaviour
     public int ActiveSaveSlotNumber => activeSaveSlotNumber;
     public int CurrentCyberStatus => currentCyberStatus;
     public int CurrentTrustTokens => currentTrustTokens;
+    public bool HasActiveSaveSlot => !string.IsNullOrWhiteSpace(activeSaveSlotId);
     public bool HasPendingRestore => pendingRestore != null;
     public PendingRestoreState CurrentPendingRestore => pendingRestore;
+    public event Action<CyberStatusChange> CyberStatusChanged;
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
     private static void Bootstrap()
@@ -155,10 +212,55 @@ public class GameSession : MonoBehaviour
         ApplyPendingRestore(scene);
     }
 
+    private bool UpdateCurrentStats(int cyberStatus, int trustTokens, string source, string reason)
+    {
+        int previousCyberStatus = currentCyberStatus;
+        int clampedCyberStatus = Mathf.Clamp(cyberStatus, MinCyberStatus, MaxCyberStatus);
+
+        currentCyberStatus = clampedCyberStatus;
+        currentTrustTokens = Mathf.Max(0, trustTokens);
+
+        if (previousCyberStatus == currentCyberStatus)
+            return false;
+
+        CyberStatusChanged?.Invoke(new CyberStatusChange
+        {
+            previousValue = previousCyberStatus,
+            currentValue = currentCyberStatus,
+            delta = currentCyberStatus - previousCyberStatus,
+            source = source ?? string.Empty,
+            reason = reason ?? string.Empty
+        });
+
+        return true;
+    }
+
     public void SetCurrentStats(int cyberStatus, int trustTokens)
     {
-        currentCyberStatus = Mathf.Clamp(cyberStatus, 0, 100);
-        currentTrustTokens = Mathf.Max(0, trustTokens);
+        UpdateCurrentStats(cyberStatus, trustTokens, null, null);
+    }
+
+    public bool SetCurrentCyberStatus(int cyberStatus, string source, string reason = null)
+    {
+        return UpdateCurrentStats(cyberStatus, currentTrustTokens, source, reason);
+    }
+
+    public bool ApplyCyberStatusDelta(int delta, string source, string reason = null)
+    {
+        if (delta != 0 && !IsCyberStatusStepAligned(delta))
+            Debug.LogWarning($"[GameSession] Cyber status delta should be divisible by {CyberStatusStep}. Received {delta} from {source ?? "Unknown"}.");
+
+        return SetCurrentCyberStatus(currentCyberStatus + delta, source, reason);
+    }
+
+    public bool ApplyCyberStatusEffect(CyberStatusEffect effect)
+    {
+        return ApplyCyberStatusDelta(effect.delta, effect.source, effect.reason);
+    }
+
+    public static bool IsCyberStatusStepAligned(int value)
+    {
+        return value % CyberStatusStep == 0;
     }
 
     public IEnumerator ListSaveSlots(Action<List<SaveSlotInfo>, string> onComplete)
@@ -266,8 +368,7 @@ public class GameSession : MonoBehaviour
         {
             activeSaveSlotId = slot.id ?? string.Empty;
             activeSaveSlotNumber = slot.slotNumber;
-            currentCyberStatus = slot.currentCyberStatus;
-            currentTrustTokens = slot.currentTrustTokens;
+            UpdateCurrentStats(slot.currentCyberStatus, slot.currentTrustTokens, "SaveSystem", "SaveSlotSync");
         }
 
         onComplete?.Invoke(slot, null);
@@ -313,8 +414,7 @@ public class GameSession : MonoBehaviour
 
         activeSaveSlotId = slot.id ?? string.Empty;
         activeSaveSlotNumber = slot.slotNumber;
-        currentCyberStatus = Mathf.Clamp(slot.currentCyberStatus, 0, 100);
-        currentTrustTokens = Mathf.Max(0, slot.currentTrustTokens);
+        UpdateCurrentStats(slot.currentCyberStatus, slot.currentTrustTokens, "SaveSystem", "LoadSaveSlot");
 
         pendingRestore = new PendingRestoreState
         {
@@ -326,6 +426,87 @@ public class GameSession : MonoBehaviour
         };
 
         onComplete?.Invoke(slot, null);
+    }
+
+    public IEnumerator GetCurrentStoryNode(string startNodeKey, Action<StoryNodeDetail, string> onComplete)
+    {
+        if (!HasActiveSaveSlot)
+        {
+            onComplete?.Invoke(null, "Load or create a save slot before starting the story.");
+            yield break;
+        }
+
+        string query = string.IsNullOrWhiteSpace(startNodeKey)
+            ? string.Empty
+            : $"?startNodeKey={UnityWebRequest.EscapeURL(startNodeKey.Trim())}";
+
+        yield return StartCoroutine(RequestStoryNode(
+            "GET",
+            $"{apiBaseUrl}/save-slots/{activeSaveSlotId}/story{query}",
+            null,
+            onComplete));
+    }
+
+    public IEnumerator ContinueStoryNode(string nodeKey, Action<StoryNodeDetail, string> onComplete)
+    {
+        if (!HasActiveSaveSlot)
+        {
+            onComplete?.Invoke(null, "Load or create a save slot before continuing the story.");
+            yield break;
+        }
+
+        string requestBody = JsonConvert.SerializeObject(new Dictionary<string, string>
+        {
+            { "nodeKey", nodeKey ?? string.Empty }
+        });
+
+        yield return StartCoroutine(RequestStoryNode(
+            "POST",
+            $"{apiBaseUrl}/save-slots/{activeSaveSlotId}/story/continue",
+            requestBody,
+            onComplete));
+    }
+
+    public IEnumerator SubmitStoryChoice(string nodeKey, string choiceId, Action<StoryNodeDetail, string> onComplete)
+    {
+        if (!HasActiveSaveSlot)
+        {
+            onComplete?.Invoke(null, "Load or create a save slot before making story choices.");
+            yield break;
+        }
+
+        string requestBody = JsonConvert.SerializeObject(new Dictionary<string, string>
+        {
+            { "nodeKey", nodeKey ?? string.Empty },
+            { "choiceId", choiceId ?? string.Empty }
+        });
+
+        yield return StartCoroutine(RequestStoryNode(
+            "POST",
+            $"{apiBaseUrl}/save-slots/{activeSaveSlotId}/story/choices",
+            requestBody,
+            onComplete));
+    }
+
+    public IEnumerator RegisterStoryInteraction(string interactionId, string groupKey, Action<StoryNodeDetail, string> onComplete)
+    {
+        if (!HasActiveSaveSlot)
+        {
+            onComplete?.Invoke(null, "Load or create a save slot before progressing story interactions.");
+            yield break;
+        }
+
+        string requestBody = JsonConvert.SerializeObject(new Dictionary<string, string>
+        {
+            { "interactionId", interactionId ?? string.Empty },
+            { "groupKey", groupKey ?? string.Empty }
+        });
+
+        yield return StartCoroutine(RequestStoryNode(
+            "POST",
+            $"{apiBaseUrl}/save-slots/{activeSaveSlotId}/story/interactions",
+            requestBody,
+            onComplete));
     }
 
     public void ClearPendingRestore()
@@ -395,8 +576,7 @@ public class GameSession : MonoBehaviour
         playerId = string.Empty;
         activeSaveSlotId = string.Empty;
         activeSaveSlotNumber = 0;
-        currentCyberStatus = 50;
-        currentTrustTokens = 0;
+        UpdateCurrentStats(50, 0, "Session", "OperatorSync");
         pendingRestore = null;
     }
 
@@ -472,8 +652,7 @@ public class GameSession : MonoBehaviour
             && !string.Equals(loadedScene.name, pendingRestore.sceneName, StringComparison.Ordinal))
             return;
 
-        currentCyberStatus = Mathf.Clamp(pendingRestore.cyberStatus, 0, 100);
-        currentTrustTokens = Mathf.Max(0, pendingRestore.trustTokens);
+        UpdateCurrentStats(pendingRestore.cyberStatus, pendingRestore.trustTokens, "SaveSystem", "PendingRestore");
 
         EventManager eventManager = EventManager.Instance;
         if (eventManager != null)
@@ -501,6 +680,62 @@ public class GameSession : MonoBehaviour
         float z = 0f;
         TryGetFloat(positionObject, "z", out z);
         return new Vector3(x, y, z);
+    }
+
+    private IEnumerator RequestStoryNode(string method, string url, string jsonBody, Action<StoryNodeDetail, string> onComplete)
+    {
+        string responseText = null;
+        string requestError = null;
+
+        yield return StartCoroutine(SendRequest(method, url, jsonBody, (body, error) =>
+        {
+            responseText = body;
+            requestError = error;
+        }));
+
+        if (!string.IsNullOrEmpty(requestError))
+        {
+            onComplete?.Invoke(null, requestError);
+            yield break;
+        }
+
+        if (string.IsNullOrWhiteSpace(responseText))
+        {
+            onComplete?.Invoke(null, "Backend returned an empty story response.");
+            yield break;
+        }
+
+        StoryNodeDetail node;
+        try
+        {
+            node = JsonConvert.DeserializeObject<StoryNodeDetail>(responseText);
+        }
+        catch (JsonException exception)
+        {
+            onComplete?.Invoke(null, $"Unable to read story response: {exception.Message}");
+            yield break;
+        }
+
+        if (node == null || string.IsNullOrWhiteSpace(node.nodeKey))
+        {
+            onComplete?.Invoke(null, "Backend returned an invalid story node.");
+            yield break;
+        }
+
+        ApplyStoryNodeState(node);
+        onComplete?.Invoke(node, null);
+    }
+
+    private void ApplyStoryNodeState(StoryNodeDetail node)
+    {
+        if (node == null)
+            return;
+
+        UpdateCurrentStats(node.currentCyberStatus, node.currentTrustTokens, "StorySystem", node.nodeKey);
+
+        EventManager eventManager = EventManager.Instance;
+        if (eventManager != null)
+            eventManager.RestoreUnlockedFlags(node.unlockedFlags);
     }
 
     private static bool TryGetFloat(JObject source, string key, out float value)

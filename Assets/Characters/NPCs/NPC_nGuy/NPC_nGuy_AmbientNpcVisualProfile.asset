@@ -1,0 +1,34 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: fb562b331df6e274e82910934bfaec31, type: 3}
+  m_Name: NPC_nGuy_AmbientNpcVisualProfile
+  m_EditorClassIdentifier: Assembly-CSharp::AmbientNpcVisualProfile
+  down:
+    idle: {fileID: -9020138999169840059, guid: 1eeb062a237a8d34daf7b10df74e1b35, type: 3}
+    walkFrames:
+    - {fileID: -5921472741599777236, guid: 35e7aab8ed983b94abb967329efc4ee0, type: 3}
+    - {fileID: 6274503191105573164, guid: 8f955f38f1a52cb40aed364aa2a220f9, type: 3}
+  up:
+    idle: {fileID: -5015080127225296341, guid: 12614b148b29ae04cb6cdcbaf6115eb2, type: 3}
+    walkFrames:
+    - {fileID: 4894598896873864107, guid: fa8d5f187ea1af54aa8f022d8f630eb1, type: 3}
+    - {fileID: 8848348980807801979, guid: bd072b976fa9b7647a652922ecc251c5, type: 3}
+  left:
+    idle: {fileID: 4699842155992170130, guid: 6159ac6f7b520f24289b1054fdd37b2b, type: 3}
+    walkFrames:
+    - {fileID: 6374996004277531703, guid: 2f994e22bf4606a4aa8221ff21a445bf, type: 3}
+    - {fileID: -3072848914125503571, guid: 447f6831554659448bf0374ceaf6e795, type: 3}
+  right:
+    idle: {fileID: 1337814052093879603, guid: abc98a8d633b2524383483797d9795bb, type: 3}
+    walkFrames:
+    - {fileID: 4484190972622758919, guid: 08cb73e272e7c8c409c5563e602fd4b1, type: 3}
+    - {fileID: -8498045379191092534, guid: e67eac6bdae40de49891cd4c74ca1c6c, type: 3}

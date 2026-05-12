@@ -83,15 +83,24 @@ public class DialogueManager : MonoBehaviour
             dialoguePanel.SetActive(false);
             PlayerMovement.RemoveMovementLock("Dialogue");
 
-            // For now: log the "effect" + feedback
+            GameSession.CyberStatusEffect effect = new GameSession.CyberStatusEffect
+            {
+                delta = choice.cyberStatusDelta,
+                source = "ScenarioChoice",
+                reason = string.IsNullOrWhiteSpace(choice.choiceText) ? choice.feedbackText : choice.choiceText
+            };
+
+            GameSession.Instance.ApplyCyberStatusEffect(effect);
+
             Debug.Log($"Picked: {choice.choiceText}");
-            Debug.Log($"CyberStatus delta (placeholder): {choice.cyberStatusDelta}");
+            Debug.Log($"CyberStatus delta: {choice.cyberStatusDelta}");
             Debug.Log($"Feedback: {choice.feedbackText}");
-            string color = (choice.cyberStatusDelta < 0) ? "red" : "lime";
-            string type = (choice.cyberStatusDelta < 0) ? "Bad choice" : "Good choice";
+            string color = choice.cyberStatusDelta < 0 ? "red" : (choice.cyberStatusDelta > 0 ? "lime" : "cyan");
+            string type = choice.cyberStatusDelta < 0 ? "Bad choice" : (choice.cyberStatusDelta > 0 ? "Good choice" : "Neutral choice");
             int delta = choice.cyberStatusDelta;
 
-            choiceLogUI.Show($"<color={color}>{type}:</color> \"{choice.feedbackText}\"  <b>{delta}</b> Cyberstatus");
+            if (choiceLogUI != null)
+                choiceLogUI.Show($"<color={color}>{type}:</color> \"{choice.feedbackText}\"  <b>{delta:+#;-#;0}</b> Cyberstatus");
         });
         Debug.Log(choiceLogUI == null ? "choiceLogUI IS NULL" : "choiceLogUI OK");
     }
