@@ -160,8 +160,23 @@ MonoBehaviour:
   wordPauseDuration: 0.18
   holdAfterTyping: 0.5
   fadeOutDuration: 5
+  textFadeOutMultiplier: 0.85
   blackPauseDuration: 1
   fadeInDuration: 5
+  promptBlinkInterval: 0.5
+  postNameScript: '>> OPERATOR VERIFIED: [PLAYER NAME]
+
+    >> INITIAL CYBERSTATUS:
+    STABLE
+
+    >> SYSTEM READY
+
+    CONTROL TRANSFERRED. AWAITING OPERATOR ACTION...
+
+
+
+    YOU
+    ARE NOW RESPONSIBLE.'
   terminalScript: 'INITIALIZING KERNEL...
 
     LOADING SECURITY_PROTOCOL_V1.0.
@@ -695,8 +710,8 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: 0, y: -128}
-  m_SizeDelta: {x: 1780, y: 960}
+  m_AnchoredPosition: {x: 15.9196, y: 169.1626}
+  m_SizeDelta: {x: 1748.1609, y: 741.6747}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &2100000052
 MonoBehaviour:
@@ -757,8 +772,8 @@ MonoBehaviour:
   m_faceColor:
     serializedVersion: 2
     rgba: 4294967295
-  m_fontSize: 78
-  m_fontSizeBase: 78
+  m_fontSize: 64
+  m_fontSizeBase: 64
   m_fontWeight: 500
   m_enableAutoSizing: 0
   m_fontSizeMin: 18

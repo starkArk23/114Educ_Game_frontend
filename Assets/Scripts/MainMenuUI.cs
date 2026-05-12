@@ -7,7 +7,7 @@ using System.Collections.Generic;
 public class MainMenuUI : MonoBehaviour
 {
     [SerializeField] private string loadingSceneName = "LoadingScene";
-    [SerializeField] private string gameSceneName = "CoreSystemDreamScene";
+    [SerializeField] private string gameSceneName = "SystemCoreScene";
     [SerializeField] private TMP_InputField operatorNameInput;
 
     private readonly List<GameSession.SaveSlotInfo> cachedSaveSlots = new List<GameSession.SaveSlotInfo>();
