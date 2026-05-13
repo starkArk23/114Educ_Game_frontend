@@ -100,25 +100,151 @@ public class PauseMenu : MonoBehaviour
 
     private void EnsureUiReferences()
     {
-        if (pauseMenuUI == null)
-            pauseMenuUI = FindInactiveObject(FallbackPanelName);
-
-        if (dimOverlay == null)
-            dimOverlay = FindInactiveObject(FallbackOverlayName);
+        pauseMenuUI = ResolvePauseMenuRoot(pauseMenuUI);
+        dimOverlay = ResolveDimOverlay(dimOverlay, pauseMenuUI);
 
         if (pauseMenuUI == null)
             BuildFallbackPauseMenuUi();
 
-        if (dimOverlay == null && pauseMenuUI != null)
-        {
-            Transform overlayTransform = pauseMenuUI.transform.parent != null
-                ? pauseMenuUI.transform.parent.Find(FallbackOverlayName)
-                : null;
-            if (overlayTransform != null)
-                dimOverlay = overlayTransform.gameObject;
-        }
+        if (pauseMenuUI != null)
+            pauseMenuUI.SetActive(false);
+
+        dimOverlay = ResolveDimOverlay(dimOverlay, pauseMenuUI);
 
         EnsureEventSystem();
+    }
+
+    private GameObject ResolvePauseMenuRoot(GameObject candidate)
+    {
+        if (IsUsablePauseMenuRoot(candidate))
+            return candidate;
+
+        if (candidate != null)
+        {
+            GameObject nestedPanel = FindDescendant(candidate.transform, FallbackPanelName);
+            if (IsUsablePauseMenuRoot(nestedPanel))
+                return nestedPanel;
+
+            Transform parent = candidate.transform.parent;
+            if (parent != null)
+            {
+                GameObject siblingPanel = FindChild(parent, FallbackPanelName);
+                if (IsUsablePauseMenuRoot(siblingPanel))
+                    return siblingPanel;
+            }
+        }
+
+        GameObject scenePanel = FindInactiveObject(FallbackPanelName);
+        return IsUsablePauseMenuRoot(scenePanel) ? scenePanel : null;
+    }
+
+    private GameObject ResolveDimOverlay(GameObject candidate, GameObject menuRoot)
+    {
+        if (IsUsableDimOverlay(candidate, menuRoot))
+            return candidate;
+
+        Transform searchRoot = menuRoot != null ? menuRoot.transform.parent : null;
+        if (searchRoot != null)
+        {
+            GameObject siblingOverlay = FindChild(searchRoot, FallbackOverlayName);
+            if (IsUsableDimOverlay(siblingOverlay, menuRoot))
+                return siblingOverlay;
+        }
+
+        GameObject sceneOverlay = FindInactiveObject(FallbackOverlayName);
+        return IsUsableDimOverlay(sceneOverlay, menuRoot) ? sceneOverlay : null;
+    }
+
+    private bool IsUsablePauseMenuRoot(GameObject candidate)
+    {
+        if (candidate == null)
+            return false;
+
+        if (candidate == dimOverlay)
+            return false;
+
+        RectTransform rectTransform = candidate.GetComponent<RectTransform>();
+        if (rectTransform == null)
+            return false;
+
+        if (!HasUsableCanvasAncestor(rectTransform))
+            return false;
+
+        if (HasCollapsedTransform(rectTransform))
+            return false;
+
+        return candidate.GetComponentInChildren<Button>(true) != null;
+    }
+
+    private bool IsUsableDimOverlay(GameObject candidate, GameObject menuRoot)
+    {
+        if (candidate == null || candidate == menuRoot)
+            return false;
+
+        Image image = candidate.GetComponent<Image>();
+        RectTransform rectTransform = candidate.GetComponent<RectTransform>();
+        if (image == null || rectTransform == null)
+            return false;
+
+        if (!HasUsableCanvasAncestor(rectTransform))
+            return false;
+
+        if (HasCollapsedTransform(rectTransform))
+            return false;
+
+        return image.color.a > 0.01f;
+    }
+
+    private bool HasUsableCanvasAncestor(Transform candidate)
+    {
+        Canvas canvas = candidate.GetComponentInParent<Canvas>(true);
+        if (canvas == null)
+            return false;
+
+        return !HasCollapsedTransform(canvas.transform);
+    }
+
+    private bool HasCollapsedTransform(Transform candidate)
+    {
+        Transform current = candidate;
+        while (current != null)
+        {
+            Vector3 scale = current.localScale;
+            if (Mathf.Abs(scale.x) < 0.01f || Mathf.Abs(scale.y) < 0.01f || Mathf.Abs(scale.z) < 0.01f)
+                return true;
+
+            current = current.parent;
+        }
+
+        return false;
+    }
+
+    private GameObject FindChild(Transform parent, string childName)
+    {
+        if (parent == null)
+            return null;
+
+        Transform child = parent.Find(childName);
+        return child != null ? child.gameObject : null;
+    }
+
+    private GameObject FindDescendant(Transform root, string objectName)
+    {
+        if (root == null)
+            return null;
+
+        for (int index = 0; index < root.childCount; index++)
+        {
+            Transform child = root.GetChild(index);
+            if (string.Equals(child.name, objectName, System.StringComparison.Ordinal))
+                return child.gameObject;
+
+            GameObject nested = FindDescendant(child, objectName);
+            if (nested != null)
+                return nested;
+        }
+
+        return null;
     }
 
     private void BuildFallbackPauseMenuUi()

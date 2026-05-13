@@ -347,11 +347,11 @@ public class StoryManager : MonoBehaviour
         currentChoices = nextNode.choices ?? new List<GameSession.StoryChoiceDetail>();
 
         DialogueManager manager = ResolveDialogueManager();
-        if (manager != null)
-            manager.HideDialoguePanel();
-
         if (wakeTransitionDelaySeconds > 0f)
             yield return new WaitForSecondsRealtime(wakeTransitionDelaySeconds);
+
+        if (manager != null)
+            manager.HideDialoguePanel();
 
         RuntimeSceneTransition.TransitionWithWakeBlink(wakeTransitionSceneName, wakeTransitionSpawnPointId, wakeTransitionBlinkCount);
     }
