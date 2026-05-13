@@ -1558,7 +1558,7 @@ MonoBehaviour:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 973113198}
-  m_Enabled: 1
+  m_Enabled: 0
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 985cff7273621e3498fe4adc3dace9f3, type: 3}
   m_Name: 
@@ -3265,7 +3265,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: cb5ab2549a1275742a78bf468b0da3fe, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PlayerMovement
-  speed: 6
+  speed: 2
   useYSorting: 1
   sortingOrderOffset: 2
   sortingOrderScale: 100

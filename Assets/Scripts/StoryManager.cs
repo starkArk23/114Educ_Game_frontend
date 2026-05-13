@@ -2,11 +2,15 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 
 public class StoryManager : MonoBehaviour
 {
     private const string MovementLockId = "StoryDialogue";
     private const string WakeTransitionNodeKey = "opening.wake";
+    private const string HallwaySceneName = "HallwayScene";
+    private const string HallwayArrivalSpawnPointId = "FromRoomScene";
+    private const string HallwayArrivalNodeKey = "chapter1.avi_intro";
 
     [SerializeField] private DialogueManager dialogueManager;
     [SerializeField] private ChoiceLogUI choiceLogUI;
@@ -26,6 +30,7 @@ public class StoryManager : MonoBehaviour
     public string CurrentNodeKey => currentNode?.nodeKey ?? string.Empty;
     public string CurrentChapterKey => currentNode?.chapterKey ?? string.Empty;
     public bool CanContinueCurrentNode => !requestInFlight && currentNode != null && currentNode.canContinue;
+    public bool IsRequestInFlight => requestInFlight;
 
     private void OnEnable()
     {
@@ -34,11 +39,25 @@ public class StoryManager : MonoBehaviour
 
         if (string.IsNullOrWhiteSpace(startNodeKey))
         {
+            if (IsHallwayScene())
+                return;
+
             ResumeCurrentStory();
             return;
         }
 
         StartStory();
+    }
+
+    private void Start()
+    {
+        if (!autoStartOnEnable || !string.IsNullOrWhiteSpace(startNodeKey) || !IsHallwayScene())
+            return;
+
+        if (TryHandleHallwayArrivalStart())
+            return;
+
+        ResumeCurrentStory();
     }
 
     public void StartStory()
@@ -56,6 +75,57 @@ public class StoryManager : MonoBehaviour
             return;
 
         StartCoroutine(GameSession.Instance.GetCurrentStoryNode(null, HandleNodeResponse));
+    }
+
+    public void RefreshCurrentNodePresentation()
+    {
+        if (requestInFlight || currentNode == null)
+            return;
+
+        QueueNodePresentation(currentNode);
+    }
+
+    private bool TryHandleHallwayArrivalStart()
+    {
+        if (!IsHallwayScene())
+            return false;
+
+        if (!RuntimeSceneTransition.ConsumeLatestArrival(HallwaySceneName, HallwayArrivalSpawnPointId))
+            return false;
+
+        StartCoroutine(RefreshHallwayArrivalStoryRoutine());
+        return true;
+    }
+
+    private static bool IsHallwayScene()
+    {
+        Scene activeScene = SceneManager.GetActiveScene();
+        return string.Equals(activeScene.name, HallwaySceneName, StringComparison.Ordinal);
+    }
+
+    private IEnumerator RefreshHallwayArrivalStoryRoutine()
+    {
+        for (int frame = 0; frame < 5; frame++)
+            yield return null;
+
+        float timeoutSeconds = 1f;
+        while (requestInFlight && timeoutSeconds > 0f)
+        {
+            timeoutSeconds -= Time.unscaledDeltaTime;
+            yield return null;
+        }
+
+        DialogueManager manager = ResolveDialogueManager();
+        if (manager != null)
+            manager.HideDialoguePanel();
+
+        if (string.Equals(CurrentNodeKey, HallwayArrivalNodeKey, StringComparison.Ordinal))
+        {
+            RefreshCurrentNodePresentation();
+            yield break;
+        }
+
+        StartCoroutine(GameSession.Instance.GetCurrentStoryNode(HallwayArrivalNodeKey, HandleNodeResponse));
     }
 
     public IEnumerator ContinueCurrentNodeSilently(Action<GameSession.StoryNodeDetail, string> onComplete)
