@@ -53,6 +53,7 @@ public class CyberStatusBarUI : MonoBehaviour
             targetImage = GetComponent<Image>();
 
         EnsureStatusTexts();
+        TrustTokenDisplayUI.AttachToStatusBar(this);
     }
 
     private void OnEnable()
@@ -61,6 +62,7 @@ public class CyberStatusBarUI : MonoBehaviour
         if (session != null)
             session.CyberStatusChanged += OnCyberStatusChanged;
 
+        TrustTokenDisplayUI.AttachToStatusBar(this);
         RefreshVisual(force: true);
         HideDeltaPopupImmediate();
     }

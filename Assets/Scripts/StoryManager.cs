@@ -303,7 +303,7 @@ public class StoryManager : MonoBehaviour
             {
                 GameSession.StoryChoiceDetail choice = currentChoices[index];
                 labels[index] = choice.trustTokenCost > 0
-                    ? $"{choice.label} (-{choice.trustTokenCost} Token)"
+                    ? $"{choice.label} (-{choice.trustTokenCost} {(choice.trustTokenCost == 1 ? "Trust Token" : "Trust Tokens")})"
                     : choice.label;
             }
 
@@ -326,8 +326,48 @@ public class StoryManager : MonoBehaviour
             yield break;
         }
 
-        ShowDialogue(GetNodeTitle(node), node.bodyText, new[] { node.endChapter ? "Close" : "Continue" }, _ => CloseStoryDialogue());
+        ShowDialogue(GetNodeTitle(node), node.bodyText, new[] { node.endChapter ? "Close" : "Continue" }, _ => HandleTerminalNode(node));
         presentationRoutine = null;
+    }
+
+    private void HandleTerminalNode(GameSession.StoryNodeDetail node)
+    {
+        if (node != null && node.endChapter)
+        {
+            StartCoroutine(GenerateEndChapterReportAndClose(node));
+            return;
+        }
+
+        CloseStoryDialogue();
+    }
+
+    private IEnumerator GenerateEndChapterReportAndClose(GameSession.StoryNodeDetail node)
+    {
+        if (requestInFlight)
+            yield break;
+
+        requestInFlight = true;
+
+        GameSession.SecurityReportDetail report = null;
+        string requestError = null;
+        yield return StartCoroutine(GameSession.Instance.GenerateSecurityReport((response, error) =>
+        {
+            report = response;
+            requestError = error;
+        }));
+
+        requestInFlight = false;
+
+        if (!string.IsNullOrEmpty(requestError))
+        {
+            ReportError(requestError);
+            yield break;
+        }
+
+        if (report != null && choiceLogUI != null)
+            choiceLogUI.Show($"Security report logged. Accuracy-first summary saved with {report.finalTrustTokens} Trust Tokens.");
+
+        CloseStoryDialogue();
     }
 
     private System.Collections.IEnumerator WaitForPresentationGate(GameSession.StoryNodeDetail node)
