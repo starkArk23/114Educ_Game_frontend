@@ -9,6 +9,7 @@ public class PauseMenu : MonoBehaviour
     private const string FallbackCanvasName = "PauseMenuCanvas";
     private const string FallbackOverlayName = "PauseDimOverlay";
     private const string FallbackPanelName = "PauseMenuUI";
+    private const int FallbackCanvasSortingOrder = 1000;
 
     [Header("UI")]
     [SerializeField] private GameObject pauseMenuUI;
@@ -122,24 +123,42 @@ public class PauseMenu : MonoBehaviour
 
     private void BuildFallbackPauseMenuUi()
     {
-        Canvas canvas = FindFirstObjectByType<Canvas>();
-        if (canvas == null)
-        {
-            GameObject canvasObject = new GameObject(FallbackCanvasName, typeof(Canvas), typeof(CanvasScaler), typeof(GraphicRaycaster));
-            canvas = canvasObject.GetComponent<Canvas>();
-            canvas.renderMode = RenderMode.ScreenSpaceOverlay;
-
-            CanvasScaler scaler = canvasObject.GetComponent<CanvasScaler>();
-            scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
-            scaler.referenceResolution = new Vector2(1920f, 1080f);
-            scaler.matchWidthOrHeight = 0.5f;
-        }
+        Canvas canvas = FindOrCreateFallbackCanvas();
 
         if (dimOverlay == null)
             dimOverlay = CreateOverlay(canvas.transform);
 
         if (pauseMenuUI == null)
             pauseMenuUI = CreatePausePanel(canvas.transform);
+    }
+
+    private Canvas FindOrCreateFallbackCanvas()
+    {
+        GameObject existingCanvasObject = FindInactiveObject(FallbackCanvasName);
+        Canvas canvas = existingCanvasObject != null ? existingCanvasObject.GetComponent<Canvas>() : null;
+
+        if (canvas == null)
+        {
+            GameObject canvasObject = new GameObject(FallbackCanvasName, typeof(Canvas), typeof(CanvasScaler), typeof(GraphicRaycaster));
+            canvas = canvasObject.GetComponent<Canvas>();
+        }
+
+        canvas.renderMode = RenderMode.ScreenSpaceOverlay;
+        canvas.overrideSorting = true;
+        canvas.sortingOrder = FallbackCanvasSortingOrder;
+
+        CanvasScaler scaler = canvas.GetComponent<CanvasScaler>();
+        if (scaler == null)
+            scaler = canvas.gameObject.AddComponent<CanvasScaler>();
+
+        scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
+        scaler.referenceResolution = new Vector2(1920f, 1080f);
+        scaler.matchWidthOrHeight = 0.5f;
+
+        if (canvas.GetComponent<GraphicRaycaster>() == null)
+            canvas.gameObject.AddComponent<GraphicRaycaster>();
+
+        return canvas;
     }
 
     private GameObject CreateOverlay(Transform parent)
