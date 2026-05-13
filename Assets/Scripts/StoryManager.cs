@@ -29,8 +29,16 @@ public class StoryManager : MonoBehaviour
 
     private void OnEnable()
     {
-        if (autoStartOnEnable)
-            StartStory();
+        if (!autoStartOnEnable)
+            return;
+
+        if (string.IsNullOrWhiteSpace(startNodeKey))
+        {
+            ResumeCurrentStory();
+            return;
+        }
+
+        StartStory();
     }
 
     public void StartStory()
@@ -223,16 +231,27 @@ public class StoryManager : MonoBehaviour
             yield break;
 
         StoryNpcEntranceController mentorPresentation = ResolvePresentationController(node.nodeKey);
-        if (mentorPresentation == null || mentorPresentation.IsPresentationComplete(node.nodeKey))
+        Chapter1AviSceneController aviPresentation = mentorPresentation == null
+            ? ResolveAviPresentationController(node.nodeKey)
+            : null;
+
+        bool mentorPending = mentorPresentation != null && !mentorPresentation.IsPresentationComplete(node.nodeKey);
+        bool aviPending = aviPresentation != null && !aviPresentation.IsPresentationComplete(node.nodeKey);
+        if (!mentorPending && !aviPending)
             yield break;
 
         LockMovement();
 
         CameraFocusController focusController = FindFirstObjectByType<CameraFocusController>();
-        if (focusController != null)
-            focusController.SetFocusTarget(mentorPresentation.transform, true);
+        Transform focusTarget = mentorPending
+            ? mentorPresentation.transform
+            : aviPresentation.PresentationTransform;
+        if (focusController != null && focusTarget != null)
+            focusController.SetFocusTarget(focusTarget, true);
 
-        yield return new WaitUntil(() => mentorPresentation == null || mentorPresentation.IsPresentationComplete(node.nodeKey));
+        yield return new WaitUntil(() =>
+            (mentorPresentation == null || mentorPresentation.IsPresentationComplete(node.nodeKey))
+            && (aviPresentation == null || aviPresentation.IsPresentationComplete(node.nodeKey)));
 
         if (mentorEntranceCameraHold > 0f)
             yield return new WaitForSeconds(mentorEntranceCameraHold);
@@ -255,6 +274,18 @@ public class StoryManager : MonoBehaviour
         }
 
         return null;
+    }
+
+    private Chapter1AviSceneController ResolveAviPresentationController(string nodeKey)
+    {
+        if (string.IsNullOrWhiteSpace(nodeKey))
+            return null;
+
+        Chapter1AviSceneController controller = GetComponent<Chapter1AviSceneController>();
+        if (controller == null)
+            controller = gameObject.AddComponent<Chapter1AviSceneController>();
+
+        return controller.ControlsNode(nodeKey) ? controller : null;
     }
 
     private void OnDialogueSelection(int selectionIndex)

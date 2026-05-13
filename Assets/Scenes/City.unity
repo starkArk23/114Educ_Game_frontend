@@ -84195,7 +84195,7 @@ MonoBehaviour:
   interactableSource: {fileID: 1848223730}
   requiredChapterKey: chapter1
   activeNodeKeys:
-  - chapter1.explore_gate
+  - chapter1.anchor_intro
   questMarkerAnchor: {fileID: 949585104}
   questMarkerOffset: {x: 0, y: 2.1, z: 0}
   hideWhenDisabled: 1
@@ -84214,11 +84214,11 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::StoryInteractionPoint
   storyManager: {fileID: 0}
   interactionId: chapter1.anchor
-  groupKey: chapter1.room_explore
-  speaker: Avi
+  groupKey: chapter1.anchor_activation
+  speaker: SYSTEM
   title: System Anchor
-  bodyText: The anchor hums with a steady pulse. Stable states are recorded here
-    so the system can recover from bad calls.
+  bodyText: The crystal glows brighter for a moment. A faint hum resonates through
+    the Core.
   promptText: Press E to check
 --- !u!61 &1848223731
 BoxCollider2D:
