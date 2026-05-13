@@ -1,3 +1,4 @@
+using System;
 using System.Collections;
 using UnityEngine;
 using UnityEngine.SceneManagement;
@@ -9,6 +10,8 @@ public class RuntimeSceneTransition : MonoBehaviour
 
     private static RuntimeSceneTransition instance;
     private static string pendingSpawnPointId;
+    private static string latestArrivalSceneName = string.Empty;
+    private static string latestArrivalSpawnPointId = string.Empty;
 
     [SerializeField] private float fadeOutDuration = 0.35f;
     [SerializeField] private float blackPauseDuration = 0.1f;
@@ -18,8 +21,29 @@ public class RuntimeSceneTransition : MonoBehaviour
     private Canvas transitionCanvas;
     private Image fadeImage;
     private bool isTransitioning;
+    private Coroutine spawnReapplyRoutine;
 
     public static bool IsTransitioning => instance != null && instance.isTransitioning;
+
+    public static bool ConsumeLatestArrival(string sceneName, string spawnPointId = null)
+    {
+        if (string.IsNullOrWhiteSpace(sceneName))
+            return false;
+
+        string expectedSceneName = sceneName.Trim();
+        if (!string.Equals(latestArrivalSceneName, expectedSceneName, StringComparison.Ordinal))
+            return false;
+
+        if (!string.IsNullOrWhiteSpace(spawnPointId)
+            && !string.Equals(latestArrivalSpawnPointId, spawnPointId.Trim(), StringComparison.Ordinal))
+        {
+            return false;
+        }
+
+        latestArrivalSceneName = string.Empty;
+        latestArrivalSpawnPointId = string.Empty;
+        return true;
+    }
 
     public static void TransitionTo(string sceneName, string spawnPointId)
     {
@@ -137,6 +161,14 @@ public class RuntimeSceneTransition : MonoBehaviour
 
     private void OnSceneLoaded(Scene scene, LoadSceneMode _mode)
     {
+        if (isTransitioning)
+        {
+            latestArrivalSceneName = scene.name;
+            latestArrivalSpawnPointId = string.IsNullOrWhiteSpace(pendingSpawnPointId)
+                ? string.Empty
+                : pendingSpawnPointId.Trim();
+        }
+
         if (string.IsNullOrWhiteSpace(pendingSpawnPointId))
             return;
 
@@ -147,7 +179,14 @@ public class RuntimeSceneTransition : MonoBehaviour
             if (spawnPoint == null || !spawnPoint.Matches(pendingSpawnPointId))
                 continue;
 
-            ApplySpawn(spawnPoint.transform.position);
+            Vector3 spawnPosition = spawnPoint.transform.position;
+            PlayerMovement.ApplySavedPositionOnce(spawnPosition);
+            ApplySpawn(spawnPosition);
+
+            if (spawnReapplyRoutine != null)
+                StopCoroutine(spawnReapplyRoutine);
+
+            spawnReapplyRoutine = StartCoroutine(ReapplySpawnRoutine(spawnPosition));
             pendingSpawnPointId = string.Empty;
             return;
         }
@@ -169,7 +208,22 @@ public class RuntimeSceneTransition : MonoBehaviour
 
         Rigidbody2D rigidbody2d = player.GetComponent<Rigidbody2D>();
         if (rigidbody2d != null)
+        {
             rigidbody2d.position = new Vector2(worldPosition.x, worldPosition.y);
+            rigidbody2d.linearVelocity = Vector2.zero;
+            rigidbody2d.angularVelocity = 0f;
+        }
+    }
+
+    private IEnumerator ReapplySpawnRoutine(Vector3 worldPosition)
+    {
+        for (int frame = 0; frame < 4; frame++)
+        {
+            yield return null;
+            ApplySpawn(worldPosition);
+        }
+
+        spawnReapplyRoutine = null;
     }
 
     private void EnsureOverlay()

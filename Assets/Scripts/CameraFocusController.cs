@@ -12,14 +12,25 @@ public class CameraFocusController : MonoBehaviour
     [SerializeField] private float smoothTime = 0.2f;
     [SerializeField] private Vector3 offset = new Vector3(0f, 0f, -10f);
 
+    [Header("Zoom")]
+    [SerializeField] private float orthographicSize = 2f;
+
     private Transform activeTarget;
     private Vector3 followVelocity;
+    private Camera attachedCamera;
 
     public Transform ActiveTarget => activeTarget;
+
+    private void Awake()
+    {
+        attachedCamera = GetComponent<Camera>();
+        ApplyCameraSize();
+    }
 
     private void Start()
     {
         activeTarget = ResolveTarget();
+        ApplyCameraSize();
 
         if (snapOnStart)
             SnapToTarget();
@@ -52,6 +63,7 @@ public class CameraFocusController : MonoBehaviour
     {
         activeTarget = newTarget != null ? newTarget : ResolveTarget();
         followVelocity = Vector3.zero;
+        ApplyCameraSize();
 
         if (snapImmediately)
             SnapToTarget();
@@ -61,6 +73,7 @@ public class CameraFocusController : MonoBehaviour
     {
         activeTarget = ResolveTarget();
         followVelocity = Vector3.zero;
+        ApplyCameraSize();
 
         if (snapImmediately)
             SnapToTarget();
@@ -75,7 +88,17 @@ public class CameraFocusController : MonoBehaviour
             return;
 
         followVelocity = Vector3.zero;
+        ApplyCameraSize();
         transform.position = GetDesiredPosition(activeTarget.position);
+    }
+
+    private void ApplyCameraSize()
+    {
+        if (attachedCamera == null)
+            attachedCamera = GetComponent<Camera>();
+
+        if (attachedCamera != null && attachedCamera.orthographic)
+            attachedCamera.orthographicSize = orthographicSize;
     }
 
     private Transform ResolveTarget()
