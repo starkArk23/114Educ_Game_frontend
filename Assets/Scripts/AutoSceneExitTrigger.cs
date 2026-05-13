@@ -15,6 +15,7 @@ public class AutoSceneExitTrigger : MonoBehaviour
     [SerializeField] private StoryManager storyManager;
     [SerializeField] private string requiredChapterKey;
     [SerializeField] private string[] activeNodeKeys = Array.Empty<string>();
+    [SerializeField] private string[] continueNodeKeys = Array.Empty<string>();
     [SerializeField] private string playerTag = "Player";
     [SerializeField] private bool continueCurrentNodeBeforeTransition;
 
@@ -225,21 +226,21 @@ public class AutoSceneExitTrigger : MonoBehaviour
             return false;
         }
 
-        if (activeNodeKeys == null || activeNodeKeys.Length == 0)
+        if (continueNodeKeys == null || continueNodeKeys.Length == 0)
             return false;
 
         string currentNodeKey = manager.CurrentNodeKey;
-        for (int index = 0; index < activeNodeKeys.Length; index++)
+        for (int index = 0; index < continueNodeKeys.Length; index++)
         {
-            string nodeKey = activeNodeKeys[index];
+            string nodeKey = continueNodeKeys[index];
             if (string.IsNullOrWhiteSpace(nodeKey))
                 continue;
 
             if (string.Equals(currentNodeKey, nodeKey, StringComparison.Ordinal))
-                return false;
+                return true;
         }
 
-        return true;
+        return false;
     }
 
     private Collider2D FindOverlappingPlayerCollider()

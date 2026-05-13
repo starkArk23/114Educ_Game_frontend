@@ -1,11 +1,14 @@
 using System;
 using System.Collections;
+using System.Collections.Generic;
 using UnityEngine;
 using TMPro;
 using UnityEngine.UI;
 using UnityEngine.EventSystems;
 public class DialogueManager : MonoBehaviour
 {
+    private const int MaxParagraphsPerPage = 4;
+
     [Header("UI")]
     public GameObject dialoguePanel;
     public TMP_Text titleText;
@@ -84,13 +87,12 @@ public class DialogueManager : MonoBehaviour
 
         int count = scenario.choices != null ? scenario.choices.Count : 0;
 
-        BeginDialogueBody(scenario.scenarioTitle, scenario.dialogueText, () =>
-        {
-            if (count >= 1) SetupChoiceButton(choiceAButton, scenario.choices[0]);
-            if (count >= 2) SetupChoiceButton(choiceBButton, scenario.choices[1]);
-            if (count >= 3) SetupChoiceButton(choiceCButton, scenario.choices[2]);
-            if (count >= 4) SetupChoiceButton(choiceDButton, scenario.choices[3]);
-        });
+        if (count >= 1) SetupChoiceButton(choiceAButton, scenario.choices[0]);
+        if (count >= 2) SetupChoiceButton(choiceBButton, scenario.choices[1]);
+        if (count >= 3) SetupChoiceButton(choiceCButton, scenario.choices[2]);
+        if (count >= 4) SetupChoiceButton(choiceDButton, scenario.choices[3]);
+
+        BeginDialogueBody(scenario.scenarioTitle, scenario.dialogueText, null);
 
         if (count < 2)
             Debug.LogWarning("Scenario has less than 2 choices. Add at least 2 choices.");
@@ -160,16 +162,9 @@ public class DialogueManager : MonoBehaviour
 
         SetTitle(title);
 
-        ResetChoices();
-
-        int count = choices != null ? Mathf.Min(choices.Length, 4) : 0;
-        BeginDialogueBody(title, body, () =>
-        {
-            if (count >= 1) SetupChoiceButton(choiceAButton, choices[0], 0, onChoiceSelected);
-            if (count >= 2) SetupChoiceButton(choiceBButton, choices[1], 1, onChoiceSelected);
-            if (count >= 3) SetupChoiceButton(choiceCButton, choices[2], 2, onChoiceSelected);
-            if (count >= 4) SetupChoiceButton(choiceDButton, choices[3], 3, onChoiceSelected);
-        });
+        List<string> pages = BuildDialoguePages(body);
+        int choiceCount = choices != null ? Mathf.Min(choices.Length, 4) : 0;
+        ShowDialoguePage(title, pages, 0, choiceCount, choices, onChoiceSelected);
     }
 
     public void ShowAutoAdvance(string title, string body, Action onBodyComplete)
@@ -213,6 +208,26 @@ public class DialogueManager : MonoBehaviour
             onChoiceSelected?.Invoke(index);
         });
     }
+
+    private void ShowDialoguePage(string title, List<string> pages, int pageIndex, int choiceCount, string[] choices, Action<int> onChoiceSelected)
+    {
+        ResetChoices();
+
+        bool hasMorePages = pageIndex < pages.Count - 1;
+        if (hasMorePages)
+        {
+            SetupChoiceButton(choiceAButton, "Continue", 0, _ => ShowDialoguePage(title, pages, pageIndex + 1, choiceCount, choices, onChoiceSelected));
+        }
+        else
+        {
+            if (choiceCount >= 1) SetupChoiceButton(choiceAButton, choices[0], 0, onChoiceSelected);
+            if (choiceCount >= 2) SetupChoiceButton(choiceBButton, choices[1], 1, onChoiceSelected);
+            if (choiceCount >= 3) SetupChoiceButton(choiceCButton, choices[2], 2, onChoiceSelected);
+            if (choiceCount >= 4) SetupChoiceButton(choiceDButton, choices[3], 3, onChoiceSelected);
+        }
+
+        BeginDialogueBody(title, pages[pageIndex], null);
+    }
     public void ShowDialogue(string text, string choiceAText, string choiceBText,
     System.Action onChoiceA, System.Action onChoiceB)
 {
@@ -225,35 +240,34 @@ public class DialogueManager : MonoBehaviour
 
     ResetChoices();
 
-    BeginDialogueBody(string.Empty, text, () =>
+    SetButtonActive(choiceAButton, true);
+    SetButtonActive(choiceBButton, true);
+    SetButtonActive(choiceCButton, false);
+    SetButtonActive(choiceDButton, false);
+
+    TMP_Text choiceALabel = GetButtonLabel(choiceAButton);
+    if (choiceALabel != null)
+        choiceALabel.text = choiceAText;
+
+    TMP_Text choiceBLabel = GetButtonLabel(choiceBButton);
+    if (choiceBLabel != null)
+        choiceBLabel.text = choiceBText;
+
+    choiceAButton.onClick.AddListener(() =>
     {
-        SetButtonActive(choiceAButton, true);
-        SetButtonActive(choiceBButton, true);
-        SetButtonActive(choiceCButton, false);
-        SetButtonActive(choiceDButton, false);
-
-        TMP_Text choiceALabel = GetButtonLabel(choiceAButton);
-        if (choiceALabel != null)
-            choiceALabel.text = choiceAText;
-
-        TMP_Text choiceBLabel = GetButtonLabel(choiceBButton);
-        if (choiceBLabel != null)
-            choiceBLabel.text = choiceBText;
-
-        choiceAButton.onClick.AddListener(() =>
-        {
-            dialoguePanel.SetActive(false);
-            PlayerMovement.RemoveMovementLock("Dialogue");
-            onChoiceA?.Invoke();
-        });
-
-        choiceBButton.onClick.AddListener(() =>
-        {
-            dialoguePanel.SetActive(false);
-            PlayerMovement.RemoveMovementLock("Dialogue");
-            onChoiceB?.Invoke();
-        });
+        dialoguePanel.SetActive(false);
+        PlayerMovement.RemoveMovementLock("Dialogue");
+        onChoiceA?.Invoke();
     });
+
+    choiceBButton.onClick.AddListener(() =>
+    {
+        dialoguePanel.SetActive(false);
+        PlayerMovement.RemoveMovementLock("Dialogue");
+        onChoiceB?.Invoke();
+    });
+
+    BeginDialogueBody(string.Empty, text, null);
 }
 
     private void ResetChoices()
@@ -306,6 +320,30 @@ public class DialogueManager : MonoBehaviour
             return title.Trim() + "\n\n" + safeBody;
 
         return safeBody;
+    }
+
+    private static List<string> BuildDialoguePages(string body)
+    {
+        List<string> pages = new List<string>();
+        string safeBody = body ?? string.Empty;
+        string[] paragraphs = safeBody.Split(new[] { "\n\n" }, StringSplitOptions.None);
+
+        if (paragraphs.Length == 0)
+        {
+            pages.Add(string.Empty);
+            return pages;
+        }
+
+        for (int index = 0; index < paragraphs.Length; index += MaxParagraphsPerPage)
+        {
+            int count = Mathf.Min(MaxParagraphsPerPage, paragraphs.Length - index);
+            pages.Add(string.Join("\n\n", paragraphs, index, count));
+        }
+
+        if (pages.Count == 0)
+            pages.Add(safeBody);
+
+        return pages;
     }
 
     private IEnumerator TypeDialogueBody(string fullText, Action onComplete)

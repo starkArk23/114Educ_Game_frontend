@@ -3,6 +3,15 @@ using UnityEngine.SceneManagement;
 
 public static class PauseMenuBootstrap
 {
+    private static readonly string[] GameplaySceneNames =
+    {
+        "City",
+        "GameScene",
+        "HallwayScene",
+        "MainScene",
+        "RoomScene"
+    };
+
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
     private static void RegisterSceneHook()
     {
@@ -31,13 +40,12 @@ public static class PauseMenuBootstrap
         if (string.IsNullOrWhiteSpace(sceneName))
             return false;
 
-        if (string.Equals(sceneName, "MainMenu", System.StringComparison.Ordinal)
-            || string.Equals(sceneName, "LoadingScene", System.StringComparison.Ordinal)
-            || string.Equals(sceneName, "SystemCoreScene", System.StringComparison.Ordinal))
+        for (int index = 0; index < GameplaySceneNames.Length; index++)
         {
-            return false;
+            if (string.Equals(sceneName, GameplaySceneNames[index], System.StringComparison.Ordinal))
+                return true;
         }
 
-        return true;
+        return false;
     }
 }

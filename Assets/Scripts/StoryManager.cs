@@ -11,6 +11,9 @@ public class StoryManager : MonoBehaviour
     private const string HallwaySceneName = "HallwayScene";
     private const string HallwayArrivalSpawnPointId = "FromRoomScene";
     private const string HallwayArrivalNodeKey = "chapter1.avi_intro";
+    private const string SystemCoreSceneName = "SystemCoreScene";
+    private const string SystemCoreArrivalSpawnPointId = "FromHallway";
+    private const string SystemCoreArrivalNodeKey = "chapter1.anchor_intro";
 
     [SerializeField] private DialogueManager dialogueManager;
     [SerializeField] private ChoiceLogUI choiceLogUI;
@@ -35,6 +38,11 @@ public class StoryManager : MonoBehaviour
     private void OnEnable()
     {
         if (!autoStartOnEnable)
+            return;
+
+        EnsureSceneSetupComponents();
+
+        if (TryHandleSystemCoreArrivalStart())
             return;
 
         if (string.IsNullOrWhiteSpace(startNodeKey))
@@ -93,7 +101,19 @@ public class StoryManager : MonoBehaviour
         if (!RuntimeSceneTransition.ConsumeLatestArrival(HallwaySceneName, HallwayArrivalSpawnPointId))
             return false;
 
-        StartCoroutine(RefreshHallwayArrivalStoryRoutine());
+        StartCoroutine(RefreshArrivalStoryRoutine(HallwayArrivalNodeKey));
+        return true;
+    }
+
+    private bool TryHandleSystemCoreArrivalStart()
+    {
+        if (!IsSystemCoreScene())
+            return false;
+
+        if (!RuntimeSceneTransition.ConsumeLatestArrival(SystemCoreSceneName, SystemCoreArrivalSpawnPointId))
+            return false;
+
+        StartCoroutine(RefreshArrivalStoryRoutine(SystemCoreArrivalNodeKey));
         return true;
     }
 
@@ -103,7 +123,21 @@ public class StoryManager : MonoBehaviour
         return string.Equals(activeScene.name, HallwaySceneName, StringComparison.Ordinal);
     }
 
-    private IEnumerator RefreshHallwayArrivalStoryRoutine()
+    private static bool IsSystemCoreScene()
+    {
+        Scene activeScene = SceneManager.GetActiveScene();
+        return string.Equals(activeScene.name, SystemCoreSceneName, StringComparison.Ordinal);
+    }
+
+    private void EnsureSceneSetupComponents()
+    {
+        if (!IsSystemCoreScene() || GetComponent<Chapter1CoreSceneSetup>() != null)
+            return;
+
+        gameObject.AddComponent<Chapter1CoreSceneSetup>();
+    }
+
+    private IEnumerator RefreshArrivalStoryRoutine(string nodeKey)
     {
         for (int frame = 0; frame < 5; frame++)
             yield return null;
@@ -119,13 +153,13 @@ public class StoryManager : MonoBehaviour
         if (manager != null)
             manager.HideDialoguePanel();
 
-        if (string.Equals(CurrentNodeKey, HallwayArrivalNodeKey, StringComparison.Ordinal))
+        if (string.Equals(CurrentNodeKey, nodeKey, StringComparison.Ordinal))
         {
             RefreshCurrentNodePresentation();
             yield break;
         }
 
-        StartCoroutine(GameSession.Instance.GetCurrentStoryNode(HallwayArrivalNodeKey, HandleNodeResponse));
+        StartCoroutine(GameSession.Instance.GetCurrentStoryNode(nodeKey, HandleNodeResponse));
     }
 
     public IEnumerator ContinueCurrentNodeSilently(Action<GameSession.StoryNodeDetail, string> onComplete)

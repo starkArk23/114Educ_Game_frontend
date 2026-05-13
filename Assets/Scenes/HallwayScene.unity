@@ -811,10 +811,13 @@ MonoBehaviour:
   interactionId: 
   groupKey: 
   storyManager: {fileID: 0}
-  requiredChapterKey: 
-  activeNodeKeys: []
+  requiredChapterKey: chapter1
+  activeNodeKeys:
+  - chapter1.anchor_intro
+  continueNodeKeys:
+  - chapter1.avi_intro
   playerTag: Player
-  continueCurrentNodeBeforeTransition: 0
+  continueCurrentNodeBeforeTransition: 1
 --- !u!61 &618061627
 BoxCollider2D:
   m_ObjectHideFlags: 0
