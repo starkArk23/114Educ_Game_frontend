@@ -106,6 +106,9 @@ public class CyberStatusBarUI : MonoBehaviour
     {
         EnsureStatusTexts();
 
+        if (exactValueText != null)
+            exactValueText.text = string.Format(exactValueFormat, cyberStatusOverride);
+
         if (targetImage == null)
             return;
 
@@ -114,24 +117,31 @@ public class CyberStatusBarUI : MonoBehaviour
 
         if (force || targetImage.sprite != sprite)
             targetImage.sprite = sprite;
-
-        if (exactValueText != null)
-            exactValueText.text = string.Format(exactValueFormat, cyberStatusOverride);
     }
 
     private bool TryGetSpriteForStatus(int cyberStatus, out Sprite sprite)
     {
+        sprite = null;
+        int closestDistance = int.MaxValue;
+
         for (int i = 0; i < visualStates.Count; i++)
         {
-            if (visualStates[i].exactCyberStatus != cyberStatus)
+            Sprite candidateSprite = visualStates[i].sprite;
+            if (candidateSprite == null)
                 continue;
 
-            sprite = visualStates[i].sprite;
-            return sprite != null;
+            int distance = Mathf.Abs(visualStates[i].exactCyberStatus - cyberStatus);
+            if (distance >= closestDistance)
+                continue;
+
+            closestDistance = distance;
+            sprite = candidateSprite;
+
+            if (distance == 0)
+                return true;
         }
 
-        sprite = null;
-        return false;
+        return sprite != null;
     }
 
     private bool ShouldShowDeltaPopup(GameSession.CyberStatusChange change)
@@ -151,6 +161,7 @@ public class CyberStatusBarUI : MonoBehaviour
         if (deltaPopupRoutine != null)
             StopCoroutine(deltaPopupRoutine);
 
+        deltaPopupText.transform.SetAsLastSibling();
         deltaPopupRoutine = StartCoroutine(AnimateDeltaPopup(delta));
     }
 

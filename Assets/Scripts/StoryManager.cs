@@ -1,4 +1,5 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -20,6 +21,7 @@ public class StoryManager : MonoBehaviour
 
     public string CurrentNodeKey => currentNode?.nodeKey ?? string.Empty;
     public string CurrentChapterKey => currentNode?.chapterKey ?? string.Empty;
+    public bool CanContinueCurrentNode => !requestInFlight && currentNode != null && currentNode.canContinue;
 
     private void OnEnable()
     {
@@ -42,6 +44,52 @@ public class StoryManager : MonoBehaviour
             return;
 
         StartCoroutine(GameSession.Instance.GetCurrentStoryNode(null, HandleNodeResponse));
+    }
+
+    public IEnumerator ContinueCurrentNodeSilently(Action<GameSession.StoryNodeDetail, string> onComplete)
+    {
+        if (requestInFlight)
+        {
+            onComplete?.Invoke(null, "A story request is already in progress.");
+            yield break;
+        }
+
+        if (currentNode == null)
+        {
+            onComplete?.Invoke(null, "No current story node is active.");
+            yield break;
+        }
+
+        if (!currentNode.canContinue)
+        {
+            onComplete?.Invoke(currentNode, null);
+            yield break;
+        }
+
+        requestInFlight = true;
+        yield return StartCoroutine(GameSession.Instance.ContinueStoryNode(currentNode.nodeKey, (node, error) =>
+        {
+            requestInFlight = false;
+
+            if (!string.IsNullOrEmpty(error))
+            {
+                ReportError(error);
+                onComplete?.Invoke(null, error);
+                return;
+            }
+
+            if (node == null)
+            {
+                const string emptyResponseError = "Story response was empty.";
+                ReportError(emptyResponseError);
+                onComplete?.Invoke(null, emptyResponseError);
+                return;
+            }
+
+            currentNode = node;
+            currentChoices = node.choices ?? new List<GameSession.StoryChoiceDetail>();
+            onComplete?.Invoke(node, null);
+        }));
     }
 
     public void HandleWorldInteraction(string interactionId, string groupKey, string speaker, string title, string bodyText)

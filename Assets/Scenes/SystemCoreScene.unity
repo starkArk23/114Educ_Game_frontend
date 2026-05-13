@@ -2225,7 +2225,6 @@ GameObject:
   m_Component:
   - component: {fileID: 887141655}
   - component: {fileID: 887141659}
-  - component: {fileID: 887141658}
   - component: {fileID: 887141657}
   - component: {fileID: 887141656}
   - component: {fileID: 887141660}
@@ -2245,7 +2244,7 @@ Transform:
   m_GameObject: {fileID: 887141654}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 4.35, y: -0.25, z: 0}
+  m_LocalPosition: {x: 4.95, y: -0.25, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
@@ -2285,36 +2284,14 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::StoryObjectiveMarkerTarget
   storyManager: {fileID: 0}
-  interactableSource: {fileID: 887141658}
+  interactableSource: {fileID: 0}
   requiredChapterKey: opening
   activeNodeKeys:
   - opening.core_exit_ready
   questMarkerAnchor: {fileID: 1960640756}
   questMarkerOffset: {x: 0, y: 2.1, z: 0}
   hideWhenDisabled: 1
-  requireInteractable: 1
---- !u!114 &887141658
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 887141654}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 224eacc8c2227cb4a83eac14ea12a47b, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::ScenePortalInteraction
-  targetSceneName: GameScene
-  targetSpawnPointId: HallwayFromSystemCore
-  interactionId: opening.core_exit
-  groupKey: opening.core_exit
-  storyManager: {fileID: 0}
-  requiredChapterKey: opening
-  activeNodeKeys:
-  - opening.core_exit_ready
-  promptText: Press E to enter
-  unavailablePromptText: 
+  requireInteractable: 0
 --- !u!61 &887141659
 BoxCollider2D:
   m_ObjectHideFlags: 0
@@ -2359,7 +2336,7 @@ BoxCollider2D:
     drawMode: 0
     adaptiveTiling: 0
   m_AutoTiling: 0
-  m_Size: {x: 0.8, y: 1.8}
+  m_Size: {x: 0.6, y: 1.7}
   m_EdgeRadius: 0
 --- !u!114 &887141660
 MonoBehaviour:
@@ -2375,7 +2352,14 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::AutoSceneExitTrigger
   targetSceneName: HallwayScene
   targetSpawnPointId: FromSystemCore
+  interactionId: opening.core_exit
+  groupKey: opening.core_exit
+  storyManager: {fileID: 973113199}
+  requiredChapterKey: opening
+  activeNodeKeys:
+  - opening.core_exit_ready
   playerTag: Player
+  continueCurrentNodeBeforeTransition: 1
 --- !u!1 &890239172
 GameObject:
   m_ObjectHideFlags: 0
@@ -2461,7 +2445,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 1}
   m_AnchorMax: {x: 0, y: 1}
-  m_AnchoredPosition: {x: 28, y: -28}
+  m_AnchoredPosition: {x: 33, y: -41}
   m_SizeDelta: {x: 324, y: 75}
   m_Pivot: {x: 0, y: 1}
 --- !u!114 &910530975

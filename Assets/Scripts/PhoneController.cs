@@ -6,8 +6,36 @@ using UnityEngine.UI;
 public class PhoneController : MonoBehaviour
 {
     private const string MovementLockId = "PhoneController";
-    private const string OpeningPhoneNodeKey = "opening.room_free_roam";
-    private const string OpeningPhoneGroupKey = "opening.system_core_phone";
+
+    [System.Serializable]
+    private struct StoryPhoneBeat
+    {
+        public string nodeKey;
+        public string interactionId;
+        public string groupKey;
+        public string titleText;
+        [TextArea(2, 5)] public string bodyText;
+    }
+
+    private static readonly StoryPhoneBeat[] DefaultStoryPhoneBeats =
+    {
+        new StoryPhoneBeat
+        {
+            nodeKey = "opening.room_free_roam",
+            interactionId = "opening.room_free_roam.phone",
+            groupKey = "opening.system_core_phone",
+            titleText = "INCOMING CALL",
+            bodyText = "The device is ringing. This is the call that wakes the operator in the System Core.\n\nPress F to answer and continue the story."
+        },
+        new StoryPhoneBeat
+        {
+            nodeKey = "opening.phone_ring",
+            interactionId = "opening.phone_ring.phone",
+            groupKey = "opening.system_core_phone_followup",
+            titleText = "INCOMING CALL",
+            bodyText = "The device is ringing again. Press F to answer and continue the next part of the story."
+        }
+    };
 
     [SerializeField] private KeyCode toggleKey = KeyCode.F;
     [SerializeField] private GameObject phonePanel;
@@ -16,6 +44,7 @@ public class PhoneController : MonoBehaviour
 
     [Header("Story Phone")]
     [SerializeField] private StoryManager storyManager;
+    [SerializeField] private StoryPhoneBeat[] storyPhoneBeats = DefaultStoryPhoneBeats;
 
     private bool isOpen;
 
@@ -68,7 +97,9 @@ public class PhoneController : MonoBehaviour
     private void RefreshPhoneText()
     {
         if (phoneTitleText != null)
-            phoneTitleText.text = IsOpeningPhoneBeat() ? "INCOMING CALL" : "FIELD DEVICE";
+            phoneTitleText.text = TryGetActiveStoryPhoneBeat(out StoryPhoneBeat storyPhoneBeat) && !string.IsNullOrWhiteSpace(storyPhoneBeat.titleText)
+                ? storyPhoneBeat.titleText
+                : (TryGetActiveStoryPhoneBeat(out _) ? "INCOMING CALL" : "FIELD DEVICE");
 
         if (phoneBodyText == null)
             return;
@@ -84,12 +115,10 @@ public class PhoneController : MonoBehaviour
 
     private string BuildPhoneBody(string operatorName, GameSession session)
     {
-        if (IsOpeningPhoneBeat())
-        {
-            return
-                "The device is ringing. This is the call that wakes the operator in the System Core.\n\n" +
-                "Press F to answer and continue the story.";
-        }
+        if (TryGetActiveStoryPhoneBeat(out StoryPhoneBeat storyPhoneBeat))
+            return string.IsNullOrWhiteSpace(storyPhoneBeat.bodyText)
+                ? "The device is ringing. Press F to answer and continue the story."
+                : storyPhoneBeat.bodyText;
 
         return
             "OPERATOR: " + operatorName + "\n" +
@@ -100,18 +129,44 @@ public class PhoneController : MonoBehaviour
 
     private bool TryAnswerStoryPhone()
     {
-        StoryManager manager = ResolveStoryManager();
-        if (manager == null || !IsOpeningPhoneBeat())
+        if (!TryGetActiveStoryPhoneBeat(out StoryPhoneBeat storyPhoneBeat))
             return false;
 
-        manager.HandleWorldInteraction(string.Empty, OpeningPhoneGroupKey, "PHONE", string.Empty, string.Empty);
+        StoryManager manager = ResolveStoryManager();
+        if (manager == null)
+            return false;
+
+        string interactionId = string.IsNullOrWhiteSpace(storyPhoneBeat.interactionId)
+            ? storyPhoneBeat.nodeKey
+            : storyPhoneBeat.interactionId;
+
+        manager.HandleWorldInteraction(interactionId, storyPhoneBeat.groupKey, "PHONE", string.Empty, string.Empty);
         return true;
     }
 
-    private bool IsOpeningPhoneBeat()
+    private bool TryGetActiveStoryPhoneBeat(out StoryPhoneBeat activeBeat)
     {
+        activeBeat = default;
+
         StoryManager manager = ResolveStoryManager();
-        return manager != null && string.Equals(manager.CurrentNodeKey, OpeningPhoneNodeKey, System.StringComparison.Ordinal);
+        if (manager == null || storyPhoneBeats == null)
+            return false;
+
+        string currentNodeKey = manager.CurrentNodeKey;
+        for (int index = 0; index < storyPhoneBeats.Length; index++)
+        {
+            StoryPhoneBeat storyPhoneBeat = storyPhoneBeats[index];
+            if (string.IsNullOrWhiteSpace(storyPhoneBeat.nodeKey) || string.IsNullOrWhiteSpace(storyPhoneBeat.groupKey))
+                continue;
+
+            if (!string.Equals(currentNodeKey, storyPhoneBeat.nodeKey, System.StringComparison.Ordinal))
+                continue;
+
+            activeBeat = storyPhoneBeat;
+            return true;
+        }
+
+        return false;
     }
 
     private StoryManager ResolveStoryManager()
