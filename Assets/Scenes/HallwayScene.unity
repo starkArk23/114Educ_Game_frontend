@@ -807,7 +807,13 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::AutoSceneExitTrigger
   targetSceneName: SystemCoreScene
   targetSpawnPointId: FromHallway
+  interactionId: 
+  groupKey: 
+  storyManager: {fileID: 0}
+  requiredChapterKey: 
+  activeNodeKeys: []
   playerTag: Player
+  continueCurrentNodeBeforeTransition: 0
 --- !u!61 &618061627
 BoxCollider2D:
   m_ObjectHideFlags: 0
@@ -852,7 +858,7 @@ BoxCollider2D:
     drawMode: 0
     adaptiveTiling: 0
   m_AutoTiling: 0
-  m_Size: {x: 0.6, y: 1.7}
+  m_Size: {x: 1.5, y: 1.7}
   m_EdgeRadius: 0
 --- !u!4 &618061628
 Transform:
@@ -3173,6 +3179,22 @@ MonoBehaviour:
   phoneTitleText: {fileID: 0}
   phoneBodyText: {fileID: 0}
   storyManager: {fileID: 0}
+  storyPhoneBeats:
+  - nodeKey: opening.room_free_roam
+    interactionId: opening.room_free_roam.phone
+    groupKey: opening.system_core_phone
+    titleText: INCOMING CALL
+    bodyText: 'The device is ringing. This is the call that wakes the operator in
+      the System Core.
+
+
+      Press F to answer and continue the story.'
+  - nodeKey: opening.phone_ring
+    interactionId: opening.phone_ring.phone
+    groupKey: opening.system_core_phone_followup
+    titleText: INCOMING CALL
+    bodyText: The device is ringing again. Press F to answer and continue the next
+      part of the story.
 --- !u!1 &1869719381
 GameObject:
   m_ObjectHideFlags: 0

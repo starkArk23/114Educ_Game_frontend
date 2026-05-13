@@ -50,6 +50,7 @@ public class PhoneController : MonoBehaviour
 
     private void Awake()
     {
+        EnsureStoryPhoneBeats();
         EnsurePhoneUi();
         SetPhoneVisible(false);
     }
@@ -96,10 +97,12 @@ public class PhoneController : MonoBehaviour
 
     private void RefreshPhoneText()
     {
+        bool hasActiveStoryPhoneBeat = TryGetActiveStoryPhoneBeat(out StoryPhoneBeat storyPhoneBeat);
+
         if (phoneTitleText != null)
-            phoneTitleText.text = TryGetActiveStoryPhoneBeat(out StoryPhoneBeat storyPhoneBeat) && !string.IsNullOrWhiteSpace(storyPhoneBeat.titleText)
+            phoneTitleText.text = hasActiveStoryPhoneBeat && !string.IsNullOrWhiteSpace(storyPhoneBeat.titleText)
                 ? storyPhoneBeat.titleText
-                : (TryGetActiveStoryPhoneBeat(out _) ? "INCOMING CALL" : "FIELD DEVICE");
+                : (hasActiveStoryPhoneBeat ? "INCOMING CALL" : "FIELD DEVICE");
 
         if (phoneBodyText == null)
             return;
@@ -147,6 +150,7 @@ public class PhoneController : MonoBehaviour
     private bool TryGetActiveStoryPhoneBeat(out StoryPhoneBeat activeBeat)
     {
         activeBeat = default;
+        EnsureStoryPhoneBeats();
 
         StoryManager manager = ResolveStoryManager();
         if (manager == null || storyPhoneBeats == null)
@@ -167,6 +171,12 @@ public class PhoneController : MonoBehaviour
         }
 
         return false;
+    }
+
+    private void EnsureStoryPhoneBeats()
+    {
+        if (storyPhoneBeats == null || storyPhoneBeats.Length == 0)
+            storyPhoneBeats = DefaultStoryPhoneBeats;
     }
 
     private StoryManager ResolveStoryManager()
