@@ -85959,7 +85959,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 043f2e7e77e4ad742ab8c679c63e1b15, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PhoneController
-  toggleKey: 102
+  toggleKey: 9
   phonePanel: {fileID: 0}
   phoneTitleText: {fileID: 0}
   phoneBodyText: {fileID: 0}

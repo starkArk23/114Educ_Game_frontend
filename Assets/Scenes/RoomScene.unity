@@ -261,7 +261,7 @@ Transform:
   m_GameObject: {fileID: 139219480}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: -4.85, y: 0, z: 0}
+  m_LocalPosition: {x: -4.4, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -891,8 +891,8 @@ Transform:
   m_GameObject: {fileID: 398825690}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 4.92, y: -2.95, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_LocalPosition: {x: 4.92, y: -1.6, z: 0}
+  m_LocalScale: {x: 4, y: 0.1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 482562364}
@@ -1222,7 +1222,7 @@ Transform:
   m_GameObject: {fileID: 482562363}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalPosition: {x: -17, y: -1, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
@@ -1259,8 +1259,8 @@ Transform:
   m_GameObject: {fileID: 538349987}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 4.92, y: 2.85, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_LocalPosition: {x: 5, y: 2.85, z: 0}
+  m_LocalScale: {x: 5, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 482562364}
@@ -2060,7 +2060,7 @@ Transform:
   m_GameObject: {fileID: 871636980}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 4.58, z: 0}
+  m_LocalPosition: {x: 0, y: 4.3, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -2870,6 +2870,16 @@ MonoBehaviour:
     sprite: {fileID: -6252058706133294294, guid: 4834b8739bd4ccd419af227a82dee80b, type: 3}
   - exactCyberStatus: 0
     sprite: {fileID: -2004582417804557287, guid: 4834b8739bd4ccd419af227a82dee80b, type: 3}
+  exactValueText: {fileID: 0}
+  exactValueOffset: {x: 0, y: 18}
+  exactValueFormat: '{0}/100'
+  deltaPopupText: {fileID: 0}
+  deltaPopupOffset: {x: 0, y: 48}
+  deltaPopupDuration: 0.9
+  deltaPopupRise: 22
+  positiveDeltaColor: {r: 0.3, g: 1, b: 0.45, a: 1}
+  negativeDeltaColor: {r: 1, g: 0.32, b: 0.32, a: 1}
+  suppressSaveSystemPopup: 1
 --- !u!114 &1084275660
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -3714,11 +3724,27 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 043f2e7e77e4ad742ab8c679c63e1b15, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PhoneController
-  toggleKey: 102
+  toggleKey: 9
   phonePanel: {fileID: 0}
   phoneTitleText: {fileID: 0}
   phoneBodyText: {fileID: 0}
   storyManager: {fileID: 0}
+  storyPhoneBeats:
+  - nodeKey: opening.room_free_roam
+    interactionId: opening.room_free_roam.phone
+    groupKey: opening.system_core_phone
+    titleText: INCOMING CALL
+    bodyText: 'The device is ringing. This is the call that wakes the operator in
+      the System Core.
+
+
+      Press Tab to answer and continue the story.'
+  - nodeKey: opening.phone_ring
+    interactionId: opening.phone_ring.phone
+    groupKey: opening.system_core_phone_followup
+    titleText: INCOMING CALL
+    bodyText: The device is ringing again. Press Tab to answer and continue the next
+      part of the story.
 --- !u!1 &1517339896
 GameObject:
   m_ObjectHideFlags: 0
@@ -3995,6 +4021,7 @@ MonoBehaviour:
   storyManager: {fileID: 0}
   requiredChapterKey: opening
   entranceNodeKey: opening.mentor_arrives
+  exitNodeKey: opening.room_exit_ready
   visibleNodeKeys:
   - opening.mentor_arrives
   - opening.mentor_question
@@ -4005,12 +4032,14 @@ MonoBehaviour:
   - opening.room_exit_ready
   entrancePoint: {fileID: 85366265}
   idlePoint: {fileID: 2078040300}
+  exitPoint: {fileID: 0}
   moveSpeed: 1.75
   idleFacingDirection: {x: -1, y: 0}
   visualProfile: {fileID: 11400000, guid: 8929316f0650503489619f36b3ecfdf7, type: 2}
   spriteRenderer: {fileID: 1729528117}
   animationFramesPerSecond: 4
   hideUntilTriggered: 1
+  hideAfterExit: 1
 --- !u!212 &1729528117
 SpriteRenderer:
   serializedVersion: 2
@@ -4496,7 +4525,7 @@ Transform:
   m_GameObject: {fileID: 2026437742}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: -4.55, z: 0}
+  m_LocalPosition: {x: 0, y: -1.6, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []

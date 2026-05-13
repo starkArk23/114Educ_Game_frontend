@@ -25,7 +25,7 @@ public class PhoneController : MonoBehaviour
             interactionId = "opening.room_free_roam.phone",
             groupKey = "opening.system_core_phone",
             titleText = "INCOMING CALL",
-            bodyText = "The device is ringing. This is the call that wakes the operator in the System Core.\n\nPress F to answer and continue the story."
+            bodyText = "The device is ringing. This is the call that wakes the operator in the System Core.\n\nPress Tab to answer and continue the story."
         },
         new StoryPhoneBeat
         {
@@ -33,11 +33,11 @@ public class PhoneController : MonoBehaviour
             interactionId = "opening.phone_ring.phone",
             groupKey = "opening.system_core_phone_followup",
             titleText = "INCOMING CALL",
-            bodyText = "The device is ringing again. Press F to answer and continue the next part of the story."
+            bodyText = "The device is ringing again. Press Tab to answer and continue the next part of the story."
         }
     };
 
-    [SerializeField] private KeyCode toggleKey = KeyCode.F;
+    [SerializeField] private KeyCode toggleKey = KeyCode.Tab;
     [SerializeField] private GameObject phonePanel;
     [SerializeField] private TMP_Text phoneTitleText;
     [SerializeField] private TMP_Text phoneBodyText;
@@ -120,14 +120,14 @@ public class PhoneController : MonoBehaviour
     {
         if (TryGetActiveStoryPhoneBeat(out StoryPhoneBeat storyPhoneBeat))
             return string.IsNullOrWhiteSpace(storyPhoneBeat.bodyText)
-                ? "The device is ringing. Press F to answer and continue the story."
+                ? "The device is ringing. Press Tab to answer and continue the story."
                 : storyPhoneBeat.bodyText;
 
         return
             "OPERATOR: " + operatorName + "\n" +
             "CYBERSTATUS: " + session.CurrentCyberStatus + "\n" +
             "TRUST TOKENS: " + session.CurrentTrustTokens + "\n\n" +
-            "Press F to close.";
+            "Press Tab to close.";
     }
 
     private bool TryAnswerStoryPhone()
