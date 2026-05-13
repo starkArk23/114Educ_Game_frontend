@@ -38,6 +38,6 @@ public static class PauseMenuBootstrap
             return false;
         }
 
-        return Object.FindFirstObjectByType<PlayerMovement>() != null;
+        return true;
     }
 }
