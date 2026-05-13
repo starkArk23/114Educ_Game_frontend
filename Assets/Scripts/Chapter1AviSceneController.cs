@@ -10,25 +10,16 @@ public class Chapter1AviSceneController : MonoBehaviour
     private const string ExploreGateNodeKey = "chapter1.explore_gate";
     private const string AviObjectName = "AviStoryNPC";
     private const string AnchorObjectName = "HallwayRightMarker";
-    private const string SpawnObjectName = "FromRoomScene";
     private const string LightPanelObjectName = "FloatingLightPanelPoint";
     private const string ThreatMonitorObjectName = "ThreatMonitorPoint";
     private const string CoreConsoleObjectName = "CoreConsolePoint";
-    private static readonly Vector3 AnchorStandOffset = new Vector3(-0.8f, 0.15f, 0f);
     private static readonly Vector3 LightPanelPosition = new Vector3(-10.15f, 0.78f, 0f);
     private static readonly Vector3 ThreatMonitorPosition = new Vector3(-9.25f, -0.32f, 0f);
     private static readonly Vector3 CoreConsolePosition = new Vector3(-8.35f, 0.82f, 0f);
     private static Sprite panelSprite;
 
-    [SerializeField] private float moveSpeed = 1.75f;
-
     private StoryManager storyManager;
     private Transform aviTransform;
-    private Transform anchorTransform;
-    private Transform spawnTransform;
-    private SpriteRenderer aviSpriteRenderer;
-    private bool anchorPresentationComplete;
-    private bool runtimeInteractionsReady;
 
     public Transform PresentationTransform => aviTransform != null ? aviTransform : transform;
 
@@ -48,70 +39,16 @@ public class Chapter1AviSceneController : MonoBehaviour
         EnsureSceneReferences();
         EnsureGuideInteraction();
         EnsureRuntimeInteractions();
-
-        if (storyManager == null || aviTransform == null || anchorTransform == null)
-            return;
-
-        if (string.Equals(storyManager.CurrentNodeKey, AnchorIntroNodeKey, StringComparison.Ordinal))
-        {
-            UpdateAnchorMovement();
-            return;
-        }
-
-        if (!anchorPresentationComplete && string.Equals(storyManager.CurrentNodeKey, ExploreGateNodeKey, StringComparison.Ordinal))
-            anchorPresentationComplete = true;
-
-        if (anchorPresentationComplete)
-            aviTransform.position = GetAnchorStandPosition();
     }
 
     public bool ControlsNode(string nodeKey)
     {
-        if (!SupportsCurrentScene())
-            return false;
-
-        EnsureSceneReferences();
-        return aviTransform != null
-            && anchorTransform != null
-            && string.Equals(nodeKey, AnchorIntroNodeKey, StringComparison.Ordinal);
+        return false;
     }
 
     public bool IsPresentationComplete(string nodeKey)
     {
-        if (!ControlsNode(nodeKey))
-            return true;
-
-        return anchorPresentationComplete;
-    }
-
-    private void UpdateAnchorMovement()
-    {
-        Vector3 targetPosition = GetAnchorStandPosition();
-        Vector3 currentPosition = aviTransform.position;
-        Vector3 delta = targetPosition - currentPosition;
-
-        if (delta.sqrMagnitude <= 0.0004f)
-        {
-            aviTransform.position = targetPosition;
-            anchorPresentationComplete = true;
-            return;
-        }
-
-        aviTransform.position = Vector3.MoveTowards(currentPosition, targetPosition, moveSpeed * Time.deltaTime);
-        UpdateFacing(delta);
-    }
-
-    private void UpdateFacing(Vector3 delta)
-    {
-        if (aviSpriteRenderer == null || Mathf.Abs(delta.x) <= 0.01f)
-            return;
-
-        aviSpriteRenderer.flipX = delta.x < 0f;
-    }
-
-    private Vector3 GetAnchorStandPosition()
-    {
-        return anchorTransform.position + AnchorStandOffset;
+        return true;
     }
 
     private void EnsureSceneReferences()
@@ -123,24 +60,7 @@ public class Chapter1AviSceneController : MonoBehaviour
         {
             GameObject aviObject = GameObject.Find(AviObjectName);
             if (aviObject != null)
-            {
                 aviTransform = aviObject.transform;
-                aviSpriteRenderer = aviObject.GetComponentInChildren<SpriteRenderer>(true);
-            }
-        }
-
-        if (anchorTransform == null)
-        {
-            GameObject anchorObject = GameObject.Find(AnchorObjectName);
-            if (anchorObject != null)
-                anchorTransform = anchorObject.transform;
-        }
-
-        if (spawnTransform == null)
-        {
-            GameObject spawnObject = GameObject.Find(SpawnObjectName);
-            if (spawnObject != null)
-                spawnTransform = spawnObject.transform;
         }
     }
 
@@ -149,16 +69,26 @@ public class Chapter1AviSceneController : MonoBehaviour
         if (!SupportsCurrentScene() || aviTransform == null)
             return;
 
+        aviTransform.gameObject.layer = 3;
+
+        BoxCollider2D collider = aviTransform.GetComponent<BoxCollider2D>();
+        if (collider == null)
+            collider = aviTransform.gameObject.AddComponent<BoxCollider2D>();
+
+        collider.enabled = true;
+        collider.isTrigger = false;
+        collider.offset = new Vector2(-0.05f, -0.71f);
+        collider.size = new Vector2(1.17f, 2.46f);
+
         if (aviTransform.GetComponent<Chapter1AviGuideInteraction>() == null)
             aviTransform.gameObject.AddComponent<Chapter1AviGuideInteraction>();
     }
 
     private void EnsureRuntimeInteractions()
     {
-        if (runtimeInteractionsReady || !SupportsCurrentScene())
+        if (!SupportsCurrentScene())
             return;
 
-        EnsureSceneReferences();
         EnsureAnchorInteraction();
         EnsureStoryProp(
             LightPanelObjectName,
@@ -187,22 +117,21 @@ public class Chapter1AviSceneController : MonoBehaviour
             "Core Console",
             "A maintenance console scrolls through integrity checks and routing logs. Avi uses stations like this to catch weak signals before they become real threats.",
             "Press E to check");
-
-        runtimeInteractionsReady = true;
     }
 
     private void EnsureAnchorInteraction()
     {
-        if (anchorTransform == null)
+        GameObject anchorObject = GameObject.Find(AnchorObjectName);
+        if (anchorObject == null)
             return;
 
-        GameObject anchorObject = anchorTransform.gameObject;
         anchorObject.layer = 3;
 
         BoxCollider2D collider = anchorObject.GetComponent<BoxCollider2D>();
         if (collider == null)
             collider = anchorObject.AddComponent<BoxCollider2D>();
 
+        collider.enabled = true;
         collider.size = new Vector2(0.95f, 1.2f);
         collider.offset = Vector2.zero;
         collider.isTrigger = false;
@@ -240,6 +169,17 @@ public class Chapter1AviSceneController : MonoBehaviour
             BoxCollider2D collider = storyProp.AddComponent<BoxCollider2D>();
             collider.size = colliderSize;
         }
+
+        storyProp.layer = 3;
+        storyProp.transform.position = worldPosition;
+
+        BoxCollider2D storyCollider = storyProp.GetComponent<BoxCollider2D>();
+        if (storyCollider == null)
+            storyCollider = storyProp.AddComponent<BoxCollider2D>();
+
+        storyCollider.enabled = true;
+        storyCollider.size = colliderSize;
+        storyCollider.isTrigger = false;
 
         Chapter1RuntimeStoryInteraction interaction = storyProp.GetComponent<Chapter1RuntimeStoryInteraction>();
         if (interaction == null)

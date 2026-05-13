@@ -47,12 +47,34 @@ public class PhoneController : MonoBehaviour
     [SerializeField] private StoryPhoneBeat[] storyPhoneBeats = DefaultStoryPhoneBeats;
 
     private bool isOpen;
+    private GameSession session;
 
     private void Awake()
     {
         EnsureStoryPhoneBeats();
         EnsurePhoneUi();
         SetPhoneVisible(false);
+    }
+
+    private void OnEnable()
+    {
+        session = GameSession.Instance;
+        if (session != null)
+        {
+            session.CyberStatusChanged += OnSessionStatsChanged;
+            session.TrustTokensChanged += OnTrustTokensChanged;
+        }
+    }
+
+    private void OnDisable()
+    {
+        if (session != null)
+        {
+            session.CyberStatusChanged -= OnSessionStatsChanged;
+            session.TrustTokensChanged -= OnTrustTokensChanged;
+        }
+
+        session = null;
     }
 
     private void Update()
@@ -95,6 +117,18 @@ public class PhoneController : MonoBehaviour
         PlayerMovement.RemoveMovementLock(MovementLockId);
     }
 
+    private void OnSessionStatsChanged(GameSession.CyberStatusChange _change)
+    {
+        if (isOpen)
+            RefreshPhoneText();
+    }
+
+    private void OnTrustTokensChanged(GameSession.TrustTokenChange _change)
+    {
+        if (isOpen)
+            RefreshPhoneText();
+    }
+
     private void RefreshPhoneText()
     {
         bool hasActiveStoryPhoneBeat = TryGetActiveStoryPhoneBeat(out StoryPhoneBeat storyPhoneBeat);
@@ -107,13 +141,13 @@ public class PhoneController : MonoBehaviour
         if (phoneBodyText == null)
             return;
 
-        GameSession session = GameSession.Instance;
-        string operatorName = !string.IsNullOrWhiteSpace(session.OperatorName)
-            ? session.OperatorName
+        GameSession activeSession = session ?? GameSession.Instance;
+        string operatorName = !string.IsNullOrWhiteSpace(activeSession.OperatorName)
+            ? activeSession.OperatorName
             : (string.IsNullOrWhiteSpace(LoadingScreen.operatorName) ? "UNKNOWN" : LoadingScreen.operatorName);
 
         phoneBodyText.text =
-            BuildPhoneBody(operatorName, session);
+            BuildPhoneBody(operatorName, activeSession);
     }
 
     private string BuildPhoneBody(string operatorName, GameSession session)

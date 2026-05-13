@@ -8,7 +8,9 @@ public class PauseMenu : MonoBehaviour
 {
     private const string FallbackCanvasName = "PauseMenuCanvas";
     private const string FallbackOverlayName = "PauseDimOverlay";
-    private const string FallbackPanelName = "PauseMenuUI";
+    private const string AuthoredCanvasName = "PauseMenuUI";
+    private const string AuthoredPanelName = "PauseMenu";
+    private const string LegacyFallbackPanelName = "PauseMenuUI";
     private const int FallbackCanvasSortingOrder = 1000;
 
     [Header("UI")]
@@ -121,20 +123,20 @@ public class PauseMenu : MonoBehaviour
 
         if (candidate != null)
         {
-            GameObject nestedPanel = FindDescendant(candidate.transform, FallbackPanelName);
+            GameObject nestedPanel = FindNamedPauseMenuRoot(candidate.transform);
             if (IsUsablePauseMenuRoot(nestedPanel))
                 return nestedPanel;
 
             Transform parent = candidate.transform.parent;
             if (parent != null)
             {
-                GameObject siblingPanel = FindChild(parent, FallbackPanelName);
+                GameObject siblingPanel = FindNamedPauseMenuRoot(parent);
                 if (IsUsablePauseMenuRoot(siblingPanel))
                     return siblingPanel;
             }
         }
 
-        GameObject scenePanel = FindInactiveObject(FallbackPanelName);
+        GameObject scenePanel = FindScenePauseMenuRoot();
         return IsUsablePauseMenuRoot(scenePanel) ? scenePanel : null;
     }
 
@@ -142,6 +144,9 @@ public class PauseMenu : MonoBehaviour
     {
         if (IsUsableDimOverlay(candidate, menuRoot))
             return candidate;
+
+        if (IsUsableCombinedMenuOverlay(menuRoot))
+            return menuRoot;
 
         Transform searchRoot = menuRoot != null ? menuRoot.transform.parent : null;
         if (searchRoot != null)
@@ -152,7 +157,10 @@ public class PauseMenu : MonoBehaviour
         }
 
         GameObject sceneOverlay = FindInactiveObject(FallbackOverlayName);
-        return IsUsableDimOverlay(sceneOverlay, menuRoot) ? sceneOverlay : null;
+        if (IsUsableDimOverlay(sceneOverlay, menuRoot))
+            return sceneOverlay;
+
+        return IsUsableCombinedMenuOverlay(menuRoot) ? menuRoot : null;
     }
 
     private bool IsUsablePauseMenuRoot(GameObject candidate)
@@ -178,7 +186,26 @@ public class PauseMenu : MonoBehaviour
 
     private bool IsUsableDimOverlay(GameObject candidate, GameObject menuRoot)
     {
-        if (candidate == null || candidate == menuRoot)
+        if (candidate == null)
+            return false;
+
+        Image image = candidate.GetComponent<Image>();
+        RectTransform rectTransform = candidate.GetComponent<RectTransform>();
+        if (image == null || rectTransform == null)
+            return false;
+
+        if (!HasUsableCanvasAncestor(rectTransform))
+            return false;
+
+        if (HasCollapsedTransform(rectTransform))
+            return false;
+
+        return image.color.a > 0.01f;
+    }
+
+    private bool IsUsableCombinedMenuOverlay(GameObject candidate)
+    {
+        if (candidate == null)
             return false;
 
         Image image = candidate.GetComponent<Image>();
@@ -247,25 +274,47 @@ public class PauseMenu : MonoBehaviour
         return null;
     }
 
+    private GameObject FindNamedPauseMenuRoot(Transform root)
+    {
+        GameObject authoredPanel = FindDescendant(root, AuthoredPanelName);
+        if (authoredPanel != null)
+            return authoredPanel;
+
+        return FindDescendant(root, LegacyFallbackPanelName);
+    }
+
+    private GameObject FindScenePauseMenuRoot()
+    {
+        GameObject authoredPanel = FindInactiveObject(AuthoredPanelName);
+        if (IsUsablePauseMenuRoot(authoredPanel))
+            return authoredPanel;
+
+        GameObject legacyPanel = FindInactiveObject(LegacyFallbackPanelName);
+        return IsUsablePauseMenuRoot(legacyPanel) ? legacyPanel : null;
+    }
+
     private void BuildFallbackPauseMenuUi()
     {
         Canvas canvas = FindOrCreateFallbackCanvas();
 
-        if (dimOverlay == null)
-            dimOverlay = CreateOverlay(canvas.transform);
-
         if (pauseMenuUI == null)
             pauseMenuUI = CreatePausePanel(canvas.transform);
+
+        if (dimOverlay == null)
+            dimOverlay = IsUsableCombinedMenuOverlay(pauseMenuUI) ? pauseMenuUI : CreateOverlay(canvas.transform);
     }
 
     private Canvas FindOrCreateFallbackCanvas()
     {
-        GameObject existingCanvasObject = FindInactiveObject(FallbackCanvasName);
+        GameObject existingCanvasObject = FindInactiveObject(AuthoredCanvasName);
+        if (existingCanvasObject == null)
+            existingCanvasObject = FindInactiveObject(FallbackCanvasName);
+
         Canvas canvas = existingCanvasObject != null ? existingCanvasObject.GetComponent<Canvas>() : null;
 
         if (canvas == null)
         {
-            GameObject canvasObject = new GameObject(FallbackCanvasName, typeof(Canvas), typeof(CanvasScaler), typeof(GraphicRaycaster));
+            GameObject canvasObject = new GameObject(AuthoredCanvasName, typeof(Canvas), typeof(CanvasScaler), typeof(GraphicRaycaster));
             canvas = canvasObject.GetComponent<Canvas>();
         }
 
@@ -307,22 +356,23 @@ public class PauseMenu : MonoBehaviour
 
     private GameObject CreatePausePanel(Transform parent)
     {
-        GameObject panel = new GameObject(FallbackPanelName, typeof(RectTransform), typeof(Image), typeof(VerticalLayoutGroup), typeof(ContentSizeFitter));
+        GameObject panel = new GameObject(AuthoredPanelName, typeof(RectTransform), typeof(Image), typeof(VerticalLayoutGroup), typeof(ContentSizeFitter));
         panel.transform.SetParent(parent, false);
 
         RectTransform rectTransform = panel.GetComponent<RectTransform>();
-        rectTransform.anchorMin = new Vector2(0.5f, 0.5f);
-        rectTransform.anchorMax = new Vector2(0.5f, 0.5f);
+        rectTransform.anchorMin = Vector2.zero;
+        rectTransform.anchorMax = Vector2.one;
         rectTransform.pivot = new Vector2(0.5f, 0.5f);
-        rectTransform.sizeDelta = new Vector2(560f, 520f);
+        rectTransform.offsetMin = Vector2.zero;
+        rectTransform.offsetMax = Vector2.zero;
 
         Image image = panel.GetComponent<Image>();
-        image.color = new Color(0.12f, 0.15f, 0.2f, 0.96f);
+        image.color = new Color(0f, 0f, 0f, 0.55f);
 
         VerticalLayoutGroup layoutGroup = panel.GetComponent<VerticalLayoutGroup>();
-        layoutGroup.childAlignment = TextAnchor.UpperCenter;
+        layoutGroup.childAlignment = TextAnchor.MiddleCenter;
         layoutGroup.spacing = 18f;
-        layoutGroup.padding = new RectOffset(40, 40, 40, 40);
+        layoutGroup.padding = new RectOffset(200, 200, 120, 120);
         layoutGroup.childControlHeight = false;
         layoutGroup.childControlWidth = true;
         layoutGroup.childForceExpandHeight = false;

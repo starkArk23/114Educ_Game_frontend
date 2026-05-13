@@ -161,6 +161,8 @@ public class RuntimeSceneTransition : MonoBehaviour
 
     private void OnSceneLoaded(Scene scene, LoadSceneMode _mode)
     {
+        PlayerMovement.ClearMovementLocksExcept(MovementLockId);
+
         if (isTransitioning)
         {
             latestArrivalSceneName = scene.name;

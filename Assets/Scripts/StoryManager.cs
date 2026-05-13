@@ -11,6 +11,9 @@ public class StoryManager : MonoBehaviour
     private const string HallwaySceneName = "HallwayScene";
     private const string HallwayArrivalSpawnPointId = "FromRoomScene";
     private const string HallwayArrivalNodeKey = "chapter1.avi_intro";
+    private const string SystemCoreSceneName = "SystemCoreScene";
+    private const string SystemCoreArrivalSpawnPointId = "FromHallway";
+    private const string SystemCoreArrivalNodeKey = "chapter1.anchor_intro";
 
     [SerializeField] private DialogueManager dialogueManager;
     [SerializeField] private ChoiceLogUI choiceLogUI;
@@ -35,6 +38,11 @@ public class StoryManager : MonoBehaviour
     private void OnEnable()
     {
         if (!autoStartOnEnable)
+            return;
+
+        EnsureSceneSetupComponents();
+
+        if (TryHandleSystemCoreArrivalStart())
             return;
 
         if (string.IsNullOrWhiteSpace(startNodeKey))
@@ -93,7 +101,19 @@ public class StoryManager : MonoBehaviour
         if (!RuntimeSceneTransition.ConsumeLatestArrival(HallwaySceneName, HallwayArrivalSpawnPointId))
             return false;
 
-        StartCoroutine(RefreshHallwayArrivalStoryRoutine());
+        StartCoroutine(RefreshArrivalStoryRoutine(HallwayArrivalNodeKey));
+        return true;
+    }
+
+    private bool TryHandleSystemCoreArrivalStart()
+    {
+        if (!IsSystemCoreScene())
+            return false;
+
+        if (!RuntimeSceneTransition.ConsumeLatestArrival(SystemCoreSceneName, SystemCoreArrivalSpawnPointId))
+            return false;
+
+        StartCoroutine(RefreshArrivalStoryRoutine(SystemCoreArrivalNodeKey));
         return true;
     }
 
@@ -103,7 +123,22 @@ public class StoryManager : MonoBehaviour
         return string.Equals(activeScene.name, HallwaySceneName, StringComparison.Ordinal);
     }
 
-    private IEnumerator RefreshHallwayArrivalStoryRoutine()
+    private static bool IsSystemCoreScene()
+    {
+        Scene activeScene = SceneManager.GetActiveScene();
+        return string.Equals(activeScene.name, SystemCoreSceneName, StringComparison.Ordinal);
+    }
+
+    private void EnsureSceneSetupComponents()
+    {
+        if (IsHallwayScene() && GetComponent<Chapter1AviSceneController>() == null)
+            gameObject.AddComponent<Chapter1AviSceneController>();
+
+        if (IsSystemCoreScene() && GetComponent<Chapter1CoreSceneSetup>() == null)
+            gameObject.AddComponent<Chapter1CoreSceneSetup>();
+    }
+
+    private IEnumerator RefreshArrivalStoryRoutine(string nodeKey)
     {
         for (int frame = 0; frame < 5; frame++)
             yield return null;
@@ -119,13 +154,13 @@ public class StoryManager : MonoBehaviour
         if (manager != null)
             manager.HideDialoguePanel();
 
-        if (string.Equals(CurrentNodeKey, HallwayArrivalNodeKey, StringComparison.Ordinal))
+        if (string.Equals(CurrentNodeKey, nodeKey, StringComparison.Ordinal))
         {
             RefreshCurrentNodePresentation();
             yield break;
         }
 
-        StartCoroutine(GameSession.Instance.GetCurrentStoryNode(HallwayArrivalNodeKey, HandleNodeResponse));
+        StartCoroutine(GameSession.Instance.GetCurrentStoryNode(nodeKey, HandleNodeResponse));
     }
 
     public IEnumerator ContinueCurrentNodeSilently(Action<GameSession.StoryNodeDetail, string> onComplete)
@@ -268,7 +303,7 @@ public class StoryManager : MonoBehaviour
             {
                 GameSession.StoryChoiceDetail choice = currentChoices[index];
                 labels[index] = choice.trustTokenCost > 0
-                    ? $"{choice.label} (-{choice.trustTokenCost} Token)"
+                    ? $"{choice.label} (-{choice.trustTokenCost} {(choice.trustTokenCost == 1 ? "Trust Token" : "Trust Tokens")})"
                     : choice.label;
             }
 
@@ -291,8 +326,48 @@ public class StoryManager : MonoBehaviour
             yield break;
         }
 
-        ShowDialogue(GetNodeTitle(node), node.bodyText, new[] { node.endChapter ? "Close" : "Continue" }, _ => CloseStoryDialogue());
+        ShowDialogue(GetNodeTitle(node), node.bodyText, new[] { node.endChapter ? "Close" : "Continue" }, _ => HandleTerminalNode(node));
         presentationRoutine = null;
+    }
+
+    private void HandleTerminalNode(GameSession.StoryNodeDetail node)
+    {
+        if (node != null && node.endChapter)
+        {
+            StartCoroutine(GenerateEndChapterReportAndClose(node));
+            return;
+        }
+
+        CloseStoryDialogue();
+    }
+
+    private IEnumerator GenerateEndChapterReportAndClose(GameSession.StoryNodeDetail node)
+    {
+        if (requestInFlight)
+            yield break;
+
+        requestInFlight = true;
+
+        GameSession.SecurityReportDetail report = null;
+        string requestError = null;
+        yield return StartCoroutine(GameSession.Instance.GenerateSecurityReport((response, error) =>
+        {
+            report = response;
+            requestError = error;
+        }));
+
+        requestInFlight = false;
+
+        if (!string.IsNullOrEmpty(requestError))
+        {
+            ReportError(requestError);
+            yield break;
+        }
+
+        if (report != null && choiceLogUI != null)
+            choiceLogUI.Show($"Security report logged. Accuracy-first summary saved with {report.finalTrustTokens} Trust Tokens.");
+
+        CloseStoryDialogue();
     }
 
     private System.Collections.IEnumerator WaitForPresentationGate(GameSession.StoryNodeDetail node)
