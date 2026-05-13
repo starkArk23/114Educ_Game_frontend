@@ -15,6 +15,7 @@ public class CyberStatusBarUI : MonoBehaviour
     }
 
     [SerializeField] private Image targetImage;
+    [SerializeField] private CriticalErrorEffect errorBlinker;
     [SerializeField] private List<VisualState> visualStates = new List<VisualState>
     {
         new VisualState { exactCyberStatus = 100 },
@@ -91,6 +92,10 @@ public class CyberStatusBarUI : MonoBehaviour
     private void OnCyberStatusChanged(GameSession.CyberStatusChange change)
     {
         RefreshVisual(force: false, cyberStatusOverride: change.currentValue);
+        if (errorBlinker != null)
+        {
+            errorBlinker.CheckCyberStatus(change.currentValue);
+        }
 
         if (ShouldShowDeltaPopup(change))
             ShowDeltaPopup(change.delta);
