@@ -138,6 +138,7 @@ public class GameSession : MonoBehaviour
     private int currentCyberStatus = 50;
     private int currentTrustTokens;
     private PendingRestoreState pendingRestore;
+    private bool forceFreshSaveSlot;
 
     public static GameSession Instance
     {
@@ -158,6 +159,16 @@ public class GameSession : MonoBehaviour
     public bool HasPendingRestore => pendingRestore != null;
     public PendingRestoreState CurrentPendingRestore => pendingRestore;
     public event Action<CyberStatusChange> CyberStatusChanged;
+
+    public void PrepareNewGame()
+    {
+        SyncOperatorNameFromLoadingScreen();
+        activeSaveSlotId = string.Empty;
+        activeSaveSlotNumber = 0;
+        pendingRestore = null;
+        forceFreshSaveSlot = true;
+        UpdateCurrentStats(50, 0, "Session", "NewGame");
+    }
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
     private static void Bootstrap()
@@ -430,9 +441,12 @@ public class GameSession : MonoBehaviour
 
     public IEnumerator GetCurrentStoryNode(string startNodeKey, Action<StoryNodeDetail, string> onComplete)
     {
-        if (!HasActiveSaveSlot)
+        string saveSlotError = null;
+        yield return StartCoroutine(EnsureActiveSaveSlot(error => saveSlotError = error));
+
+        if (!string.IsNullOrEmpty(saveSlotError))
         {
-            onComplete?.Invoke(null, "Load or create a save slot before starting the story.");
+            onComplete?.Invoke(null, saveSlotError);
             yield break;
         }
 
@@ -449,9 +463,12 @@ public class GameSession : MonoBehaviour
 
     public IEnumerator ContinueStoryNode(string nodeKey, Action<StoryNodeDetail, string> onComplete)
     {
-        if (!HasActiveSaveSlot)
+        string saveSlotError = null;
+        yield return StartCoroutine(EnsureActiveSaveSlot(error => saveSlotError = error));
+
+        if (!string.IsNullOrEmpty(saveSlotError))
         {
-            onComplete?.Invoke(null, "Load or create a save slot before continuing the story.");
+            onComplete?.Invoke(null, saveSlotError);
             yield break;
         }
 
@@ -469,9 +486,12 @@ public class GameSession : MonoBehaviour
 
     public IEnumerator SubmitStoryChoice(string nodeKey, string choiceId, Action<StoryNodeDetail, string> onComplete)
     {
-        if (!HasActiveSaveSlot)
+        string saveSlotError = null;
+        yield return StartCoroutine(EnsureActiveSaveSlot(error => saveSlotError = error));
+
+        if (!string.IsNullOrEmpty(saveSlotError))
         {
-            onComplete?.Invoke(null, "Load or create a save slot before making story choices.");
+            onComplete?.Invoke(null, saveSlotError);
             yield break;
         }
 
@@ -490,9 +510,12 @@ public class GameSession : MonoBehaviour
 
     public IEnumerator RegisterStoryInteraction(string interactionId, string groupKey, Action<StoryNodeDetail, string> onComplete)
     {
-        if (!HasActiveSaveSlot)
+        string saveSlotError = null;
+        yield return StartCoroutine(EnsureActiveSaveSlot(error => saveSlotError = error));
+
+        if (!string.IsNullOrEmpty(saveSlotError))
         {
-            onComplete?.Invoke(null, "Load or create a save slot before progressing story interactions.");
+            onComplete?.Invoke(null, saveSlotError);
             yield break;
         }
 
@@ -512,6 +535,62 @@ public class GameSession : MonoBehaviour
     public void ClearPendingRestore()
     {
         pendingRestore = null;
+    }
+
+    private IEnumerator EnsureActiveSaveSlot(Action<string> onComplete)
+    {
+        if (HasActiveSaveSlot)
+        {
+            onComplete?.Invoke(null);
+            yield break;
+        }
+
+        if (forceFreshSaveSlot)
+        {
+            string freshCreateError = null;
+            yield return StartCoroutine(SaveToSlot(1, operatorName, (_slot, error) => freshCreateError = error));
+            forceFreshSaveSlot = false;
+            onComplete?.Invoke(freshCreateError);
+            yield break;
+        }
+
+        List<SaveSlotInfo> slots = null;
+        string slotsError = null;
+        yield return StartCoroutine(ListSaveSlots((availableSlots, error) =>
+        {
+            slots = availableSlots;
+            slotsError = error;
+        }));
+
+        if (!string.IsNullOrEmpty(slotsError))
+        {
+            onComplete?.Invoke(slotsError);
+            yield break;
+        }
+
+        SaveSlotInfo existingSlot = null;
+        if (slots != null && slots.Count > 0)
+        {
+            existingSlot = slots[0];
+            for (int index = 1; index < slots.Count; index++)
+            {
+                SaveSlotInfo candidate = slots[index];
+                if (candidate != null && (existingSlot == null || candidate.slotNumber < existingSlot.slotNumber))
+                    existingSlot = candidate;
+            }
+        }
+
+        if (existingSlot != null && !string.IsNullOrWhiteSpace(existingSlot.id))
+        {
+            string loadError = null;
+            yield return StartCoroutine(LoadSaveSlot(existingSlot.id, (_slot, error) => loadError = error));
+            onComplete?.Invoke(loadError);
+            yield break;
+        }
+
+        string createError = null;
+        yield return StartCoroutine(SaveToSlot(1, operatorName, (_slot, error) => createError = error));
+        onComplete?.Invoke(createError);
     }
 
     private IEnumerator EnsurePlayerRegistered(Action<string> onComplete)
@@ -578,6 +657,7 @@ public class GameSession : MonoBehaviour
         activeSaveSlotNumber = 0;
         UpdateCurrentStats(50, 0, "Session", "OperatorSync");
         pendingRestore = null;
+        forceFreshSaveSlot = false;
     }
 
     private SaveSnapshot BuildSnapshot(string slotName)
@@ -791,6 +871,14 @@ public class GameSession : MonoBehaviour
 
     private static string ExtractError(UnityWebRequest request)
     {
+        if (request == null)
+            return $"Unable to reach the backend at {DefaultApiBaseUrl}. Start the backend server and try again.";
+
+        if (request.result == UnityWebRequest.Result.ConnectionError)
+        {
+            return $"Unable to reach the backend at {DefaultApiBaseUrl}. Start the backend server on port 4000 and try again.";
+        }
+
         string body = request.downloadHandler != null ? request.downloadHandler.text : string.Empty;
         if (!string.IsNullOrWhiteSpace(body))
         {
@@ -808,6 +896,8 @@ public class GameSession : MonoBehaviour
             return body;
         }
 
-        return string.IsNullOrWhiteSpace(request.error) ? "Unable to reach the backend." : request.error;
+        return string.IsNullOrWhiteSpace(request.error)
+            ? $"Unable to reach the backend at {DefaultApiBaseUrl}."
+            : request.error;
     }
 }

@@ -75,6 +75,8 @@ public class LoadingScreen : MonoBehaviour
             SetOverlayAlpha(0f);
         }
 
+        SetLoadingInputBlocked(true);
+
         if (terminalText != null)
             terminalText.text = string.Empty;
 
@@ -138,6 +140,7 @@ public class LoadingScreen : MonoBehaviour
         yield return new WaitUntil(() => op.isDone);
         yield return null; // let the new scene render a frame under the overlay
 
+        SetLoadingInputBlocked(false);
         yield return StartCoroutine(FadeOverlay(1f, 0f, fadeInDuration));
 
         if (loadingCanvasRoot != null)
@@ -321,6 +324,18 @@ public class LoadingScreen : MonoBehaviour
         }
 
         SetOverlayAlpha(to);
+    }
+
+    private void SetLoadingInputBlocked(bool blocked)
+    {
+        if (loadingGroup != null)
+        {
+            loadingGroup.interactable = blocked;
+            loadingGroup.blocksRaycasts = blocked;
+        }
+
+        if (fadeOverlay != null)
+            fadeOverlay.raycastTarget = blocked;
     }
 
     private void SetOverlayAlpha(float alpha)
