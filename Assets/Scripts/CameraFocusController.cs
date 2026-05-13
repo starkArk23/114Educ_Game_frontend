@@ -13,7 +13,7 @@ public class CameraFocusController : MonoBehaviour
     [SerializeField] private Vector3 offset = new Vector3(0f, 0f, -10f);
 
     [Header("Zoom")]
-    [SerializeField] private float orthographicSize = 3f;
+    [SerializeField] private float orthographicSize = 2f;
 
     private Transform activeTarget;
     private Vector3 followVelocity;
