@@ -16,6 +16,7 @@ public class StoryManager : MonoBehaviour
     [SerializeField] private string wakeTransitionSceneName = "RoomScene";
     [SerializeField] private string wakeTransitionSpawnPointId;
     [SerializeField] private int wakeTransitionBlinkCount = 2;
+    [SerializeField] private float wakeTransitionDelaySeconds = 2f;
 
     private GameSession.StoryNodeDetail currentNode;
     private List<GameSession.StoryChoiceDetail> currentChoices = new List<GameSession.StoryChoiceDetail>();
@@ -348,6 +349,9 @@ public class StoryManager : MonoBehaviour
         DialogueManager manager = ResolveDialogueManager();
         if (manager != null)
             manager.HideDialoguePanel();
+
+        if (wakeTransitionDelaySeconds > 0f)
+            yield return new WaitForSecondsRealtime(wakeTransitionDelaySeconds);
 
         RuntimeSceneTransition.TransitionWithWakeBlink(wakeTransitionSceneName, wakeTransitionSpawnPointId, wakeTransitionBlinkCount);
     }
