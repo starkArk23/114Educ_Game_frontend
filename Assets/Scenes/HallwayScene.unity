@@ -252,6 +252,7 @@ MonoBehaviour:
   snapOnStart: 1
   smoothTime: 0.2
   offset: {x: 0, y: 0, z: -10}
+  orthographicSize: 2
 --- !u!114 &306342927
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -313,8 +314,8 @@ Camera:
     height: 1
   near clip plane: 0.3
   far clip plane: 1000
-  field of view: 60
-  orthographic: 1
+  field of view: 18
+  orthographic: 0
   orthographic size: 1.6621829
   m_Depth: -1
   m_CullingMask:
