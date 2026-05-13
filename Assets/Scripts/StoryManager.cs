@@ -131,10 +131,11 @@ public class StoryManager : MonoBehaviour
 
     private void EnsureSceneSetupComponents()
     {
-        if (!IsSystemCoreScene() || GetComponent<Chapter1CoreSceneSetup>() != null)
-            return;
+        if (IsHallwayScene() && GetComponent<Chapter1AviSceneController>() == null)
+            gameObject.AddComponent<Chapter1AviSceneController>();
 
-        gameObject.AddComponent<Chapter1CoreSceneSetup>();
+        if (IsSystemCoreScene() && GetComponent<Chapter1CoreSceneSetup>() == null)
+            gameObject.AddComponent<Chapter1CoreSceneSetup>();
     }
 
     private IEnumerator RefreshArrivalStoryRoutine(string nodeKey)

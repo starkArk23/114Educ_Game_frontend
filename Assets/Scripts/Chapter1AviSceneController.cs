@@ -6,7 +6,17 @@ using UnityEngine.SceneManagement;
 public class Chapter1AviSceneController : MonoBehaviour
 {
     private const string SupportedSceneName = "HallwayScene";
+    private const string AnchorIntroNodeKey = "chapter1.anchor_intro";
+    private const string ExploreGateNodeKey = "chapter1.explore_gate";
     private const string AviObjectName = "AviStoryNPC";
+    private const string AnchorObjectName = "HallwayRightMarker";
+    private const string LightPanelObjectName = "FloatingLightPanelPoint";
+    private const string ThreatMonitorObjectName = "ThreatMonitorPoint";
+    private const string CoreConsoleObjectName = "CoreConsolePoint";
+    private static readonly Vector3 LightPanelPosition = new Vector3(-10.15f, 0.78f, 0f);
+    private static readonly Vector3 ThreatMonitorPosition = new Vector3(-9.25f, -0.32f, 0f);
+    private static readonly Vector3 CoreConsolePosition = new Vector3(-8.35f, 0.82f, 0f);
+    private static Sprite panelSprite;
 
     private StoryManager storyManager;
     private Transform aviTransform;
@@ -18,6 +28,7 @@ public class Chapter1AviSceneController : MonoBehaviour
         storyManager = GetComponent<StoryManager>();
         EnsureSceneReferences();
         EnsureGuideInteraction();
+        EnsureRuntimeInteractions();
     }
 
     private void Update()
@@ -27,6 +38,7 @@ public class Chapter1AviSceneController : MonoBehaviour
 
         EnsureSceneReferences();
         EnsureGuideInteraction();
+        EnsureRuntimeInteractions();
     }
 
     public bool ControlsNode(string nodeKey)
@@ -57,8 +69,144 @@ public class Chapter1AviSceneController : MonoBehaviour
         if (!SupportsCurrentScene() || aviTransform == null)
             return;
 
+        aviTransform.gameObject.layer = 3;
+
+        BoxCollider2D collider = aviTransform.GetComponent<BoxCollider2D>();
+        if (collider == null)
+            collider = aviTransform.gameObject.AddComponent<BoxCollider2D>();
+
+        collider.enabled = true;
+        collider.isTrigger = false;
+        collider.offset = new Vector2(-0.05f, -0.71f);
+        collider.size = new Vector2(1.17f, 2.46f);
+
         if (aviTransform.GetComponent<Chapter1AviGuideInteraction>() == null)
             aviTransform.gameObject.AddComponent<Chapter1AviGuideInteraction>();
+    }
+
+    private void EnsureRuntimeInteractions()
+    {
+        if (!SupportsCurrentScene())
+            return;
+
+        EnsureAnchorInteraction();
+        EnsureStoryProp(
+            LightPanelObjectName,
+            LightPanelPosition,
+            new Vector2(1.15f, 0.4f),
+            new Color(0.75f, 0.95f, 1f, 0.9f),
+            "chapter1.light_panel",
+            "Floating Light Panel",
+            "A translucent panel hovers near the wall, softly shifting between cool white and pale blue. You tap it, and the lighting subtly changes.\n\nAvi: Oh! That adjusts the lighting.\n\n[She squints up at the ceiling.]\n\nAvi: The Mentor says bright lights help with focus... but honestly, they just strain my eyes. Don't tell him I said that...",
+            "Press E to check");
+        EnsureStoryProp(
+            ThreatMonitorObjectName,
+            ThreatMonitorPosition,
+            new Vector2(1.05f, 0.55f),
+            new Color(0.67f, 0.98f, 0.9f, 0.92f),
+            "chapter1.monitor",
+            "Threat Monitor",
+            "A monitor scrolls through low-priority anomaly pings. Avi keeps sneaking glances back to make sure none of them spike while you're looking around.",
+            "Press E to check");
+        EnsureStoryProp(
+            CoreConsoleObjectName,
+            CoreConsolePosition,
+            new Vector2(0.95f, 0.5f),
+            new Color(0.9f, 0.88f, 1f, 0.92f),
+            "chapter1.console",
+            "Core Console",
+            "A maintenance console scrolls through integrity checks and routing logs. Avi uses stations like this to catch weak signals before they become real threats.",
+            "Press E to check");
+    }
+
+    private void EnsureAnchorInteraction()
+    {
+        GameObject anchorObject = GameObject.Find(AnchorObjectName);
+        if (anchorObject == null)
+            return;
+
+        anchorObject.layer = 3;
+
+        BoxCollider2D collider = anchorObject.GetComponent<BoxCollider2D>();
+        if (collider == null)
+            collider = anchorObject.AddComponent<BoxCollider2D>();
+
+        collider.enabled = true;
+        collider.size = new Vector2(0.95f, 1.2f);
+        collider.offset = Vector2.zero;
+        collider.isTrigger = false;
+
+        Chapter1RuntimeStoryInteraction interaction = anchorObject.GetComponent<Chapter1RuntimeStoryInteraction>();
+        if (interaction == null)
+            interaction = anchorObject.AddComponent<Chapter1RuntimeStoryInteraction>();
+
+        interaction.Configure(
+            AnchorIntroNodeKey,
+            "chapter1.anchor",
+            "chapter1.anchor_activation",
+            "SYSTEM",
+            "System Anchor",
+            "The crystal glows brighter for a moment. A faint hum resonates through the hall.",
+            "Press E to check");
+    }
+
+    private void EnsureStoryProp(string objectName, Vector3 worldPosition, Vector2 colliderSize, Color color, string interactionId, string title, string bodyText, string prompt)
+    {
+        GameObject storyProp = GameObject.Find(objectName);
+        if (storyProp == null)
+        {
+            storyProp = new GameObject(objectName);
+            storyProp.layer = 3;
+            storyProp.transform.position = worldPosition;
+
+            SpriteRenderer spriteRenderer = storyProp.AddComponent<SpriteRenderer>();
+            spriteRenderer.sprite = ResolvePanelSprite();
+            spriteRenderer.color = color;
+            spriteRenderer.sortingLayerName = "ActorsFront";
+            spriteRenderer.sortingOrder = 3;
+            storyProp.transform.localScale = new Vector3(colliderSize.x, colliderSize.y, 1f);
+
+            BoxCollider2D collider = storyProp.AddComponent<BoxCollider2D>();
+            collider.size = colliderSize;
+        }
+
+        storyProp.layer = 3;
+        storyProp.transform.position = worldPosition;
+
+        BoxCollider2D storyCollider = storyProp.GetComponent<BoxCollider2D>();
+        if (storyCollider == null)
+            storyCollider = storyProp.AddComponent<BoxCollider2D>();
+
+        storyCollider.enabled = true;
+        storyCollider.size = colliderSize;
+        storyCollider.isTrigger = false;
+
+        Chapter1RuntimeStoryInteraction interaction = storyProp.GetComponent<Chapter1RuntimeStoryInteraction>();
+        if (interaction == null)
+            interaction = storyProp.AddComponent<Chapter1RuntimeStoryInteraction>();
+
+        interaction.Configure(
+            ExploreGateNodeKey,
+            interactionId,
+            "chapter1.room_explore",
+            "Avi",
+            title,
+            bodyText,
+            prompt);
+    }
+
+    private static Sprite ResolvePanelSprite()
+    {
+        if (panelSprite != null)
+            return panelSprite;
+
+        panelSprite = Sprite.Create(
+            Texture2D.whiteTexture,
+            new Rect(0f, 0f, Texture2D.whiteTexture.width, Texture2D.whiteTexture.height),
+            new Vector2(0.5f, 0.5f),
+            16f);
+        panelSprite.name = LightPanelObjectName;
+        return panelSprite;
     }
 
     private static bool SupportsCurrentScene()
