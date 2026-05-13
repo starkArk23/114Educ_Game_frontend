@@ -18,6 +18,7 @@ public class RuntimeSceneTransition : MonoBehaviour
     private Canvas transitionCanvas;
     private Image fadeImage;
     private bool isTransitioning;
+    private Coroutine spawnReapplyRoutine;
 
     public static bool IsTransitioning => instance != null && instance.isTransitioning;
 
@@ -147,7 +148,14 @@ public class RuntimeSceneTransition : MonoBehaviour
             if (spawnPoint == null || !spawnPoint.Matches(pendingSpawnPointId))
                 continue;
 
-            ApplySpawn(spawnPoint.transform.position);
+            Vector3 spawnPosition = spawnPoint.transform.position;
+            PlayerMovement.ApplySavedPositionOnce(spawnPosition);
+            ApplySpawn(spawnPosition);
+
+            if (spawnReapplyRoutine != null)
+                StopCoroutine(spawnReapplyRoutine);
+
+            spawnReapplyRoutine = StartCoroutine(ReapplySpawnRoutine(spawnPosition));
             pendingSpawnPointId = string.Empty;
             return;
         }
@@ -169,7 +177,22 @@ public class RuntimeSceneTransition : MonoBehaviour
 
         Rigidbody2D rigidbody2d = player.GetComponent<Rigidbody2D>();
         if (rigidbody2d != null)
+        {
             rigidbody2d.position = new Vector2(worldPosition.x, worldPosition.y);
+            rigidbody2d.linearVelocity = Vector2.zero;
+            rigidbody2d.angularVelocity = 0f;
+        }
+    }
+
+    private IEnumerator ReapplySpawnRoutine(Vector3 worldPosition)
+    {
+        for (int frame = 0; frame < 4; frame++)
+        {
+            yield return null;
+            ApplySpawn(worldPosition);
+        }
+
+        spawnReapplyRoutine = null;
     }
 
     private void EnsureOverlay()
