@@ -24,6 +24,8 @@ public class DialogueManager : MonoBehaviour
     private Vector2 defaultPanelAnchoredPosition;
     private bool hasDefaultPanelPosition;
     private Coroutine dialogueTypingCoroutine;
+    private string activeDialogueFullText = string.Empty;
+    private Action activeDialogueComplete;
 
     public bool HasUsableUi
     {
@@ -48,6 +50,20 @@ public class DialogueManager : MonoBehaviour
 
         if (dialoguePanel != null)
             dialoguePanel.SetActive(false);
+    }
+
+    private void Update()
+    {
+        if (dialogueTypingCoroutine == null || dialoguePanel == null || !dialoguePanel.activeInHierarchy)
+            return;
+
+        if (Input.GetKeyDown(KeyCode.Space)
+            || Input.GetKeyDown(KeyCode.Return)
+            || Input.GetKeyDown(KeyCode.KeypadEnter)
+            || Input.GetMouseButtonDown(0))
+        {
+            CompleteDialogueBodyImmediately();
+        }
     }
 
     // ✅ This is what ScenarioTester needs
@@ -270,10 +286,13 @@ public class DialogueManager : MonoBehaviour
         }
 
         string fullText = ComposeBodyText(title, body);
+        activeDialogueFullText = fullText;
+        activeDialogueComplete = onComplete;
+
         if (dialogueTypeSpeed <= 0f)
         {
             dialogueText.text = fullText;
-            onComplete?.Invoke();
+            FinalizeDialogueBody();
             return;
         }
 
@@ -300,7 +319,7 @@ public class DialogueManager : MonoBehaviour
 
             if (nextCharacter == '\n')
             {
-                yield return new WaitForSeconds(linePause);
+                yield return new WaitForSecondsRealtime(linePause);
                 continue;
             }
 
@@ -308,10 +327,37 @@ public class DialogueManager : MonoBehaviour
             if (nextCharacter == '.' || nextCharacter == ',' || nextCharacter == '!' || nextCharacter == '?' || nextCharacter == ':' || nextCharacter == ';')
                 delay += punctuationPause;
 
-            yield return new WaitForSeconds(delay);
+            yield return new WaitForSecondsRealtime(delay);
         }
 
+        FinalizeDialogueBody();
+    }
+
+    private void CompleteDialogueBodyImmediately()
+    {
+        if (dialogueText == null)
+        {
+            FinalizeDialogueBody();
+            return;
+        }
+
+        if (dialogueTypingCoroutine != null)
+        {
+            StopCoroutine(dialogueTypingCoroutine);
+            dialogueTypingCoroutine = null;
+        }
+
+        dialogueText.text = activeDialogueFullText ?? string.Empty;
+        FinalizeDialogueBody();
+    }
+
+    private void FinalizeDialogueBody()
+    {
         dialogueTypingCoroutine = null;
+
+        Action onComplete = activeDialogueComplete;
+        activeDialogueComplete = null;
+        activeDialogueFullText = string.Empty;
         onComplete?.Invoke();
     }
 
