@@ -138,6 +138,7 @@ public class GameSession : MonoBehaviour
     private int currentCyberStatus = 50;
     private int currentTrustTokens;
     private PendingRestoreState pendingRestore;
+    private bool forceFreshSaveSlot;
 
     public static GameSession Instance
     {
@@ -158,6 +159,16 @@ public class GameSession : MonoBehaviour
     public bool HasPendingRestore => pendingRestore != null;
     public PendingRestoreState CurrentPendingRestore => pendingRestore;
     public event Action<CyberStatusChange> CyberStatusChanged;
+
+    public void PrepareNewGame()
+    {
+        SyncOperatorNameFromLoadingScreen();
+        activeSaveSlotId = string.Empty;
+        activeSaveSlotNumber = 0;
+        pendingRestore = null;
+        forceFreshSaveSlot = true;
+        UpdateCurrentStats(50, 0, "Session", "NewGame");
+    }
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
     private static void Bootstrap()
@@ -534,6 +545,15 @@ public class GameSession : MonoBehaviour
             yield break;
         }
 
+        if (forceFreshSaveSlot)
+        {
+            string freshCreateError = null;
+            yield return StartCoroutine(SaveToSlot(1, operatorName, (_slot, error) => freshCreateError = error));
+            forceFreshSaveSlot = false;
+            onComplete?.Invoke(freshCreateError);
+            yield break;
+        }
+
         List<SaveSlotInfo> slots = null;
         string slotsError = null;
         yield return StartCoroutine(ListSaveSlots((availableSlots, error) =>
@@ -637,6 +657,7 @@ public class GameSession : MonoBehaviour
         activeSaveSlotNumber = 0;
         UpdateCurrentStats(50, 0, "Session", "OperatorSync");
         pendingRestore = null;
+        forceFreshSaveSlot = false;
     }
 
     private SaveSnapshot BuildSnapshot(string slotName)

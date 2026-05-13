@@ -1606,11 +1606,12 @@ MonoBehaviour:
   dialogueManager: {fileID: 980536543}
   choiceLogUI: {fileID: 1517339897}
   autoStartOnEnable: 1
-  startNodeKey: 
+  startNodeKey: opening.room_free_roam
   mentorEntranceCameraHold: 0.15
   wakeTransitionSceneName: RoomScene
   wakeTransitionSpawnPointId: RoomStart
   wakeTransitionBlinkCount: 2
+  wakeTransitionDelaySeconds: 2
 --- !u!114 &710629518
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -2384,7 +2385,7 @@ Camera:
   far clip plane: 1000
   field of view: 60
   orthographic: 1
-  orthographic size: 3.2
+  orthographic size: 3.0546176
   m_Depth: -1
   m_CullingMask:
     serializedVersion: 2
@@ -2839,7 +2840,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 1}
   m_AnchorMax: {x: 0, y: 1}
-  m_AnchoredPosition: {x: 28, y: -28}
+  m_AnchoredPosition: {x: 30, y: -62}
   m_SizeDelta: {x: 324, y: 75}
   m_Pivot: {x: 0, y: 1}
 --- !u!114 &1084275659

@@ -3461,7 +3461,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::MainMenuUI
   loadingSceneName: LoadingScene
-  gameSceneName: SystemCoreScene
+  gameSceneName: RoomScene
   operatorNameInput: {fileID: 0}
 --- !u!1 &1915757790
 GameObject:
