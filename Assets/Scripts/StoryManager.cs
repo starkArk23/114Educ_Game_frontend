@@ -6,12 +6,16 @@ using UnityEngine;
 public class StoryManager : MonoBehaviour
 {
     private const string MovementLockId = "StoryDialogue";
+    private const string WakeTransitionNodeKey = "opening.wake";
 
     [SerializeField] private DialogueManager dialogueManager;
     [SerializeField] private ChoiceLogUI choiceLogUI;
     [SerializeField] private bool autoStartOnEnable;
     [SerializeField] private string startNodeKey;
     [SerializeField] private float mentorEntranceCameraHold = 0.15f;
+    [SerializeField] private string wakeTransitionSceneName = "RoomScene";
+    [SerializeField] private string wakeTransitionSpawnPointId;
+    [SerializeField] private int wakeTransitionBlinkCount = 2;
 
     private GameSession.StoryNodeDetail currentNode;
     private List<GameSession.StoryChoiceDetail> currentChoices = new List<GameSession.StoryChoiceDetail>();
@@ -194,6 +198,13 @@ public class StoryManager : MonoBehaviour
             yield break;
         }
 
+        if (ShouldAutoTransitionWakeNode(node))
+        {
+            ShowWakeTransitionDialogue(node);
+            presentationRoutine = null;
+            yield break;
+        }
+
         if (node.canContinue)
         {
             ShowDialogue(GetNodeTitle(node), node.bodyText, new[] { "Continue" }, _ => ContinueCurrentNode());
@@ -274,6 +285,71 @@ public class StoryManager : MonoBehaviour
 
         requestInFlight = true;
         StartCoroutine(GameSession.Instance.ContinueStoryNode(currentNode.nodeKey, HandleNodeResponse));
+    }
+
+    private bool ShouldAutoTransitionWakeNode(GameSession.StoryNodeDetail node)
+    {
+        return node != null
+            && node.canContinue
+            && string.Equals(node.nodeKey, WakeTransitionNodeKey, StringComparison.Ordinal)
+            && !string.IsNullOrWhiteSpace(wakeTransitionSceneName);
+    }
+
+    private void ShowWakeTransitionDialogue(GameSession.StoryNodeDetail node)
+    {
+        DialogueManager manager = ResolveDialogueManager();
+        if (manager == null)
+        {
+            ReportError("No DialogueManager was found in the scene.");
+            return;
+        }
+
+        LockMovement();
+        manager.ShowAutoAdvance(GetNodeTitle(node), node.bodyText, BeginWakeTransition);
+    }
+
+    private void BeginWakeTransition()
+    {
+        if (requestInFlight || currentNode == null || !ShouldAutoTransitionWakeNode(currentNode))
+            return;
+
+        StartCoroutine(BeginWakeTransitionRoutine(currentNode.nodeKey));
+    }
+
+    private IEnumerator BeginWakeTransitionRoutine(string nodeKey)
+    {
+        requestInFlight = true;
+
+        GameSession.StoryNodeDetail nextNode = null;
+        string requestError = null;
+        yield return StartCoroutine(GameSession.Instance.ContinueStoryNode(nodeKey, (node, error) =>
+        {
+            nextNode = node;
+            requestError = error;
+        }));
+
+        requestInFlight = false;
+
+        if (!string.IsNullOrEmpty(requestError))
+        {
+            ReportError(requestError);
+            yield break;
+        }
+
+        if (nextNode == null)
+        {
+            ReportError("Wake transition did not return the next story node.");
+            yield break;
+        }
+
+        currentNode = nextNode;
+        currentChoices = nextNode.choices ?? new List<GameSession.StoryChoiceDetail>();
+
+        DialogueManager manager = ResolveDialogueManager();
+        if (manager != null)
+            manager.HideDialoguePanel();
+
+        RuntimeSceneTransition.TransitionWithWakeBlink(wakeTransitionSceneName, wakeTransitionSpawnPointId, wakeTransitionBlinkCount);
     }
 
     private void ShowDialogue(string title, string bodyText, string[] choices, Action<int> onChoiceSelected)

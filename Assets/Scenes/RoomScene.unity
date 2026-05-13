@@ -1607,6 +1607,10 @@ MonoBehaviour:
   choiceLogUI: {fileID: 1517339897}
   autoStartOnEnable: 1
   startNodeKey: 
+  mentorEntranceCameraHold: 0.15
+  wakeTransitionSceneName: RoomScene
+  wakeTransitionSpawnPointId: RoomStart
+  wakeTransitionBlinkCount: 2
 --- !u!114 &710629518
 MonoBehaviour:
   m_ObjectHideFlags: 0

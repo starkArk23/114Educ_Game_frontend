@@ -156,6 +156,30 @@ public class DialogueManager : MonoBehaviour
         });
     }
 
+    public void ShowAutoAdvance(string title, string body, Action onBodyComplete)
+    {
+        EnsureUiReferences();
+
+        if (dialoguePanel == null || dialogueText == null)
+        {
+            Debug.LogError("ShowAutoAdvance: dialoguePanel or dialogueText is NULL");
+            return;
+        }
+
+        EnsureEventSystem();
+
+        PreparePanel();
+        SetTitle(title);
+        ResetChoices();
+        BeginDialogueBody(title, body, onBodyComplete);
+    }
+
+    public void HideDialoguePanel()
+    {
+        if (dialoguePanel != null)
+            dialoguePanel.SetActive(false);
+    }
+
     private void SetupChoiceButton(Button btn, string label, int index, Action<int> onChoiceSelected)
     {
         if (btn == null)

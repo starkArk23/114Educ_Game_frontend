@@ -33,6 +33,18 @@ public class RuntimeSceneTransition : MonoBehaviour
         instance.StartCoroutine(instance.TransitionRoutine(sceneName.Trim(), spawnPointId));
     }
 
+    public static void TransitionWithWakeBlink(string sceneName, string spawnPointId, int blinkCount = 2)
+    {
+        if (string.IsNullOrWhiteSpace(sceneName))
+        {
+            Debug.LogWarning("[RuntimeSceneTransition] Target scene name is required.");
+            return;
+        }
+
+        EnsureInstance();
+        instance.StartCoroutine(instance.WakeTransitionRoutine(sceneName.Trim(), spawnPointId, Mathf.Max(1, blinkCount)));
+    }
+
     private static void EnsureInstance()
     {
         if (instance != null)
@@ -75,6 +87,38 @@ public class RuntimeSceneTransition : MonoBehaviour
         pendingSpawnPointId = string.IsNullOrWhiteSpace(spawnPointId) ? string.Empty : spawnPointId.Trim();
 
         PlayerMovement.AddMovementLock(MovementLockId);
+        yield return FadeOverlay(0f, 1f, fadeOutDuration);
+
+        if (blackPauseDuration > 0f)
+            yield return new WaitForSecondsRealtime(blackPauseDuration);
+
+        AsyncOperation operation = SceneManager.LoadSceneAsync(sceneName);
+        while (!operation.isDone)
+            yield return null;
+
+        yield return null;
+        yield return FadeOverlay(1f, 0f, fadeInDuration);
+        PlayerMovement.RemoveMovementLock(MovementLockId);
+
+        isTransitioning = false;
+    }
+
+    private IEnumerator WakeTransitionRoutine(string sceneName, string spawnPointId, int blinkCount)
+    {
+        if (isTransitioning)
+            yield break;
+
+        isTransitioning = true;
+        pendingSpawnPointId = string.IsNullOrWhiteSpace(spawnPointId) ? string.Empty : spawnPointId.Trim();
+
+        PlayerMovement.AddMovementLock(MovementLockId);
+
+        for (int blinkIndex = 0; blinkIndex < blinkCount; blinkIndex++)
+        {
+            yield return FadeOverlay(0f, 1f, fadeOutDuration * 0.35f);
+            yield return FadeOverlay(1f, 0f, fadeInDuration * 0.2f);
+        }
+
         yield return FadeOverlay(0f, 1f, fadeOutDuration);
 
         if (blackPauseDuration > 0f)

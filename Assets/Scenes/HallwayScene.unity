@@ -1156,7 +1156,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 1}
   m_AnchorMax: {x: 0, y: 1}
-  m_AnchoredPosition: {x: 28, y: -28}
+  m_AnchoredPosition: {x: 26.400024, y: -71.100006}
   m_SizeDelta: {x: 324, y: 75}
   m_Pivot: {x: 0, y: 1}
 --- !u!114 &910530975
@@ -1501,6 +1501,9 @@ MonoBehaviour:
   autoStartOnEnable: 1
   startNodeKey: opening.wake
   mentorEntranceCameraHold: 0.15
+  wakeTransitionSceneName: RoomScene
+  wakeTransitionSpawnPointId: 
+  wakeTransitionBlinkCount: 2
 --- !u!114 &973113200
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -3156,8 +3159,8 @@ Transform:
   m_GameObject: {fileID: 1687914297}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: -11.05, y: -0.55, z: 0}
-  m_LocalScale: {x: 0.4, y: 0.4, z: 0.75}
+  m_LocalPosition: {x: -12.05, y: -0.61, z: 0}
+  m_LocalScale: {x: 0.15, y: 0.15, z: 0.75}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 0}
