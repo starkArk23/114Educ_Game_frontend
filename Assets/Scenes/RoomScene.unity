@@ -577,8 +577,9 @@ MonoBehaviour:
   dialogueManager: {fileID: 0}
   speaker: SYSTEM CORE
   title: Monitoring Console
-  bodyText: Diagnostic windows flicker across the console. Parts of the system are
-    stable, but something still feels off.
+  bodyText: '[CRITICAL ALERT]: Remote Desktop Connection established from Moscow.
+    Your firewall has been DISABLED. Files are currently being encrypted. SYSTEM
+    COMPROMISED.'
   buttonLabel: Continue
   promptText: Press E to inspect
 --- !u!61 &175794062
@@ -1894,12 +1895,14 @@ GameObject:
   - component: {fileID: 810501492}
   - component: {fileID: 810501491}
   - component: {fileID: 810501490}
+  - component: {fileID: 810501495}
+  - component: {fileID: 810501496}
   m_Layer: 3
   m_Name: RingingPhone
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
+  m_StaticEditorFlags: 2147483647
   m_IsActive: 1
 --- !u!4 &810501489
 Transform:
@@ -2007,7 +2010,7 @@ BoxCollider2D:
   m_CallbackLayers:
     serializedVersion: 2
     m_Bits: 4294967295
-  m_IsTrigger: 0
+  m_IsTrigger: 1
   m_UsedByEffector: 0
   m_CompositeOperation: 0
   m_CompositeOrder: 0
@@ -2082,6 +2085,41 @@ SpriteRenderer:
   m_SpriteTileMode: 0
   m_WasSpriteAssigned: 1
   m_SpriteSortPoint: 0
+--- !u!114 &810501495
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 810501488}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c81c0cbe3152e154cb6178e657a61768, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::InspectableInteraction
+  dialogueManager: {fileID: 980536543}
+  speaker: SYSTEM CORE
+  title: Phone
+  bodyText: '[SCAN COMPLETE]: External signal detected. Origin: UNKNOWN. Encryption
+    level: HIGH. Likely a social engineering attempt. Exercise caution.'
+  buttonLabel: Continue
+  promptText: Press E to inspect
+--- !u!114 &810501496
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 810501488}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b3b42705803ab8b479b44fdc10e2347e, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::SimpleInspect
+  myPanel: {fileID: 0}
+  myText: {fileID: 0}
+  info: 
+  isNear: 0
 --- !u!1 &833575704
 GameObject:
   m_ObjectHideFlags: 0
@@ -2713,8 +2751,9 @@ MonoBehaviour:
   dialogueManager: {fileID: 0}
   speaker: SYSTEM CORE
   title: Utility Crate
-  bodyText: Inside are sealed tools and backup patches. Everything is labeled for
-    emergencies.
+  bodyText: '[SECURITY BREACH]: This crate contains a ''WiFi Pineapple'' and a signal
+    jammer. Someone is intercepting every message leaving this room. THE WALLS HAVE
+    EARS.'
   buttonLabel: Continue
   promptText: Press E to inspect
 --- !u!61 &1079299639
