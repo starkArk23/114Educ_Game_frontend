@@ -2,11 +2,15 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 
 public class StoryManager : MonoBehaviour
 {
     private const string MovementLockId = "StoryDialogue";
     private const string WakeTransitionNodeKey = "opening.wake";
+    private const string HallwaySceneName = "HallwayScene";
+    private const string HallwayArrivalSpawnPointId = "FromRoomScene";
+    private const string HallwayArrivalNodeKey = "chapter1.avi_intro";
 
     [SerializeField] private DialogueManager dialogueManager;
     [SerializeField] private ChoiceLogUI choiceLogUI;
@@ -26,11 +30,34 @@ public class StoryManager : MonoBehaviour
     public string CurrentNodeKey => currentNode?.nodeKey ?? string.Empty;
     public string CurrentChapterKey => currentNode?.chapterKey ?? string.Empty;
     public bool CanContinueCurrentNode => !requestInFlight && currentNode != null && currentNode.canContinue;
+    public bool IsRequestInFlight => requestInFlight;
 
     private void OnEnable()
     {
-        if (autoStartOnEnable)
-            StartStory();
+        if (!autoStartOnEnable)
+            return;
+
+        if (string.IsNullOrWhiteSpace(startNodeKey))
+        {
+            if (IsHallwayScene())
+                return;
+
+            ResumeCurrentStory();
+            return;
+        }
+
+        StartStory();
+    }
+
+    private void Start()
+    {
+        if (!autoStartOnEnable || !string.IsNullOrWhiteSpace(startNodeKey) || !IsHallwayScene())
+            return;
+
+        if (TryHandleHallwayArrivalStart())
+            return;
+
+        ResumeCurrentStory();
     }
 
     public void StartStory()
@@ -48,6 +75,57 @@ public class StoryManager : MonoBehaviour
             return;
 
         StartCoroutine(GameSession.Instance.GetCurrentStoryNode(null, HandleNodeResponse));
+    }
+
+    public void RefreshCurrentNodePresentation()
+    {
+        if (requestInFlight || currentNode == null)
+            return;
+
+        QueueNodePresentation(currentNode);
+    }
+
+    private bool TryHandleHallwayArrivalStart()
+    {
+        if (!IsHallwayScene())
+            return false;
+
+        if (!RuntimeSceneTransition.ConsumeLatestArrival(HallwaySceneName, HallwayArrivalSpawnPointId))
+            return false;
+
+        StartCoroutine(RefreshHallwayArrivalStoryRoutine());
+        return true;
+    }
+
+    private static bool IsHallwayScene()
+    {
+        Scene activeScene = SceneManager.GetActiveScene();
+        return string.Equals(activeScene.name, HallwaySceneName, StringComparison.Ordinal);
+    }
+
+    private IEnumerator RefreshHallwayArrivalStoryRoutine()
+    {
+        for (int frame = 0; frame < 5; frame++)
+            yield return null;
+
+        float timeoutSeconds = 1f;
+        while (requestInFlight && timeoutSeconds > 0f)
+        {
+            timeoutSeconds -= Time.unscaledDeltaTime;
+            yield return null;
+        }
+
+        DialogueManager manager = ResolveDialogueManager();
+        if (manager != null)
+            manager.HideDialoguePanel();
+
+        if (string.Equals(CurrentNodeKey, HallwayArrivalNodeKey, StringComparison.Ordinal))
+        {
+            RefreshCurrentNodePresentation();
+            yield break;
+        }
+
+        StartCoroutine(GameSession.Instance.GetCurrentStoryNode(HallwayArrivalNodeKey, HandleNodeResponse));
     }
 
     public IEnumerator ContinueCurrentNodeSilently(Action<GameSession.StoryNodeDetail, string> onComplete)
@@ -223,16 +301,27 @@ public class StoryManager : MonoBehaviour
             yield break;
 
         StoryNpcEntranceController mentorPresentation = ResolvePresentationController(node.nodeKey);
-        if (mentorPresentation == null || mentorPresentation.IsPresentationComplete(node.nodeKey))
+        Chapter1AviSceneController aviPresentation = mentorPresentation == null
+            ? ResolveAviPresentationController(node.nodeKey)
+            : null;
+
+        bool mentorPending = mentorPresentation != null && !mentorPresentation.IsPresentationComplete(node.nodeKey);
+        bool aviPending = aviPresentation != null && !aviPresentation.IsPresentationComplete(node.nodeKey);
+        if (!mentorPending && !aviPending)
             yield break;
 
         LockMovement();
 
         CameraFocusController focusController = FindFirstObjectByType<CameraFocusController>();
-        if (focusController != null)
-            focusController.SetFocusTarget(mentorPresentation.transform, true);
+        Transform focusTarget = mentorPending
+            ? mentorPresentation.transform
+            : aviPresentation.PresentationTransform;
+        if (focusController != null && focusTarget != null)
+            focusController.SetFocusTarget(focusTarget, true);
 
-        yield return new WaitUntil(() => mentorPresentation == null || mentorPresentation.IsPresentationComplete(node.nodeKey));
+        yield return new WaitUntil(() =>
+            (mentorPresentation == null || mentorPresentation.IsPresentationComplete(node.nodeKey))
+            && (aviPresentation == null || aviPresentation.IsPresentationComplete(node.nodeKey)));
 
         if (mentorEntranceCameraHold > 0f)
             yield return new WaitForSeconds(mentorEntranceCameraHold);
@@ -255,6 +344,18 @@ public class StoryManager : MonoBehaviour
         }
 
         return null;
+    }
+
+    private Chapter1AviSceneController ResolveAviPresentationController(string nodeKey)
+    {
+        if (string.IsNullOrWhiteSpace(nodeKey))
+            return null;
+
+        Chapter1AviSceneController controller = GetComponent<Chapter1AviSceneController>();
+        if (controller == null)
+            controller = gameObject.AddComponent<Chapter1AviSceneController>();
+
+        return controller.ControlsNode(nodeKey) ? controller : null;
     }
 
     private void OnDialogueSelection(int selectionIndex)
@@ -347,11 +448,11 @@ public class StoryManager : MonoBehaviour
         currentChoices = nextNode.choices ?? new List<GameSession.StoryChoiceDetail>();
 
         DialogueManager manager = ResolveDialogueManager();
-        if (manager != null)
-            manager.HideDialoguePanel();
-
         if (wakeTransitionDelaySeconds > 0f)
             yield return new WaitForSecondsRealtime(wakeTransitionDelaySeconds);
+
+        if (manager != null)
+            manager.HideDialoguePanel();
 
         RuntimeSceneTransition.TransitionWithWakeBlink(wakeTransitionSceneName, wakeTransitionSpawnPointId, wakeTransitionBlinkCount);
     }
