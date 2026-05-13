@@ -6,7 +6,6 @@ using UnityEngine;
 public class StoryManager : MonoBehaviour
 {
     private const string MovementLockId = "StoryDialogue";
-    private const string MentorEntranceNodeKey = "opening.mentor_arrives";
 
     [SerializeField] private DialogueManager dialogueManager;
     [SerializeField] private ChoiceLogUI choiceLogUI;
@@ -208,20 +207,20 @@ public class StoryManager : MonoBehaviour
 
     private System.Collections.IEnumerator WaitForPresentationGate(GameSession.StoryNodeDetail node)
     {
-        if (node == null || !string.Equals(node.nodeKey, MentorEntranceNodeKey, StringComparison.Ordinal))
+        if (node == null)
             yield break;
 
-        StoryNpcEntranceController mentorEntrance = ResolveEntranceController(node.nodeKey);
-        if (mentorEntrance == null || mentorEntrance.HasCompletedEntrance)
+        StoryNpcEntranceController mentorPresentation = ResolvePresentationController(node.nodeKey);
+        if (mentorPresentation == null || mentorPresentation.IsPresentationComplete(node.nodeKey))
             yield break;
 
         LockMovement();
 
         CameraFocusController focusController = FindFirstObjectByType<CameraFocusController>();
         if (focusController != null)
-            focusController.SetFocusTarget(mentorEntrance.transform, true);
+            focusController.SetFocusTarget(mentorPresentation.transform, true);
 
-        yield return new WaitUntil(() => mentorEntrance == null || mentorEntrance.HasCompletedEntrance);
+        yield return new WaitUntil(() => mentorPresentation == null || mentorPresentation.IsPresentationComplete(node.nodeKey));
 
         if (mentorEntranceCameraHold > 0f)
             yield return new WaitForSeconds(mentorEntranceCameraHold);
@@ -230,7 +229,7 @@ public class StoryManager : MonoBehaviour
             focusController.ClearFocusTarget(false);
     }
 
-    private StoryNpcEntranceController ResolveEntranceController(string nodeKey)
+    private StoryNpcEntranceController ResolvePresentationController(string nodeKey)
     {
         StoryNpcEntranceController[] controllers = FindObjectsByType<StoryNpcEntranceController>(FindObjectsInactive.Include, FindObjectsSortMode.None);
         for (int index = 0; index < controllers.Length; index++)
@@ -239,7 +238,7 @@ public class StoryManager : MonoBehaviour
             if (controller == null)
                 continue;
 
-            if (string.Equals(controller.EntranceNodeKey, nodeKey, StringComparison.Ordinal))
+            if (controller.ControlsNode(nodeKey))
                 return controller;
         }
 
