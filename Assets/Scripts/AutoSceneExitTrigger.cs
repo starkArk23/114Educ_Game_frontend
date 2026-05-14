@@ -6,6 +6,8 @@ using UnityEngine;
 [RequireComponent(typeof(Collider2D))]
 public class AutoSceneExitTrigger : MonoBehaviour
 {
+    private const int OverlapBufferSize = 8;
+
     [SerializeField] private string targetSceneName;
     [SerializeField] private string targetSpawnPointId;
     [SerializeField] private string interactionId;
@@ -13,11 +15,13 @@ public class AutoSceneExitTrigger : MonoBehaviour
     [SerializeField] private StoryManager storyManager;
     [SerializeField] private string requiredChapterKey;
     [SerializeField] private string[] activeNodeKeys = Array.Empty<string>();
+    [SerializeField] private string[] continueNodeKeys = Array.Empty<string>();
     [SerializeField] private string playerTag = "Player";
     [SerializeField] private bool continueCurrentNodeBeforeTransition;
 
     private Collider2D triggerCollider;
     private bool requestInFlight;
+    private readonly Collider2D[] overlapResults = new Collider2D[OverlapBufferSize];
 
     private void Reset()
     {
@@ -34,11 +38,11 @@ public class AutoSceneExitTrigger : MonoBehaviour
         if (!enabled || RuntimeSceneTransition.IsTransitioning || requestInFlight)
             return;
 
-        Collider2D playerCollider = ResolvePlayerCollider();
-        if (triggerCollider == null || playerCollider == null)
+        if (triggerCollider == null)
             return;
 
-        if (!triggerCollider.IsTouching(playerCollider))
+        Collider2D playerCollider = FindOverlappingPlayerCollider();
+        if (playerCollider == null)
             return;
 
         TryHandleTrigger(playerCollider);
@@ -59,7 +63,8 @@ public class AutoSceneExitTrigger : MonoBehaviour
         if (!enabled || RuntimeSceneTransition.IsTransitioning || requestInFlight)
             return;
 
-        if (other == null || !other.CompareTag(playerTag))
+        Collider2D playerCollider = ResolvePlayerCollider(other);
+        if (playerCollider == null)
             return;
 
         StoryManager manager = ResolveStoryManager();
@@ -221,26 +226,66 @@ public class AutoSceneExitTrigger : MonoBehaviour
             return false;
         }
 
-        if (activeNodeKeys == null || activeNodeKeys.Length == 0)
+        if (continueNodeKeys == null || continueNodeKeys.Length == 0)
             return false;
 
         string currentNodeKey = manager.CurrentNodeKey;
-        for (int index = 0; index < activeNodeKeys.Length; index++)
+        for (int index = 0; index < continueNodeKeys.Length; index++)
         {
-            string nodeKey = activeNodeKeys[index];
+            string nodeKey = continueNodeKeys[index];
             if (string.IsNullOrWhiteSpace(nodeKey))
                 continue;
 
             if (string.Equals(currentNodeKey, nodeKey, StringComparison.Ordinal))
-                return false;
+                return true;
         }
 
-        return true;
+        return false;
     }
 
-    private Collider2D ResolvePlayerCollider()
+    private Collider2D FindOverlappingPlayerCollider()
     {
+        ContactFilter2D filter = default;
+        filter.useTriggers = true;
+
+        int hitCount = triggerCollider.Overlap(filter, overlapResults);
+        for (int index = 0; index < hitCount; index++)
+        {
+            Collider2D playerCollider = ResolvePlayerCollider(overlapResults[index]);
+            if (playerCollider != null)
+                return playerCollider;
+        }
+
         GameObject player = GameObject.FindGameObjectWithTag(playerTag);
-        return player != null ? player.GetComponent<Collider2D>() : null;
+        if (player == null)
+            return null;
+
+        Collider2D playerRootCollider = player.GetComponent<Collider2D>();
+        return playerRootCollider != null && triggerCollider.IsTouching(playerRootCollider)
+            ? playerRootCollider
+            : null;
+    }
+
+    private Collider2D ResolvePlayerCollider(Collider2D candidate)
+    {
+        if (candidate == null)
+            return null;
+
+        if (candidate.CompareTag(playerTag))
+            return candidate;
+
+        Rigidbody2D attachedBody = candidate.attachedRigidbody;
+        if (attachedBody != null)
+        {
+            GameObject attachedObject = attachedBody.gameObject;
+            if (attachedObject != null && attachedObject.CompareTag(playerTag))
+                return candidate;
+        }
+
+        Transform root = candidate.transform.root;
+        if (root != null && root.CompareTag(playerTag))
+            return candidate;
+
+        return null;
     }
 }

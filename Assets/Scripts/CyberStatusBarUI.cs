@@ -7,6 +7,10 @@ using UnityEngine.UI;
 
 public class CyberStatusBarUI : MonoBehaviour
 {
+    private static readonly Vector2 LegacyCenteredDeltaPopupOffset = new Vector2(0f, 48f);
+    private static readonly Vector2 DefaultRightSideDeltaPopupOffset = new Vector2(18f, 2f);
+    private const float LegacyDeltaPopupDuration = 0.9f;
+
     [Serializable]
     private struct VisualState
     {
@@ -33,9 +37,9 @@ public class CyberStatusBarUI : MonoBehaviour
 
     [Header("Delta Popup")]
     [SerializeField] private TMP_Text deltaPopupText;
-    [SerializeField] private Vector2 deltaPopupOffset = new Vector2(0f, 48f);
-    [SerializeField] private float deltaPopupDuration = 0.9f;
-    [SerializeField] private float deltaPopupRise = 22f;
+    [SerializeField] private Vector2 deltaPopupOffset = new Vector2(18f, 2f);
+    [SerializeField] private float deltaPopupDuration = 5f;
+    [SerializeField] private float deltaPopupRise = 12f;
     [SerializeField] private Color positiveDeltaColor = new Color(0.3f, 1f, 0.45f, 1f);
     [SerializeField] private Color negativeDeltaColor = new Color(1f, 0.32f, 0.32f, 1f);
     [SerializeField] private bool suppressSaveSystemPopup = true;
@@ -53,7 +57,9 @@ public class CyberStatusBarUI : MonoBehaviour
         if (targetImage == null)
             targetImage = GetComponent<Image>();
 
+        UpgradeLegacyDeltaPopupSettings();
         EnsureStatusTexts();
+        TrustTokenDisplayUI.AttachToStatusBar(this);
     }
 
     private void OnEnable()
@@ -62,6 +68,7 @@ public class CyberStatusBarUI : MonoBehaviour
         if (session != null)
             session.CyberStatusChanged += OnCyberStatusChanged;
 
+        TrustTokenDisplayUI.AttachToStatusBar(this);
         RefreshVisual(force: true);
         HideDeltaPopupImmediate();
     }
@@ -82,6 +89,8 @@ public class CyberStatusBarUI : MonoBehaviour
 
     private void OnValidate()
     {
+        UpgradeLegacyDeltaPopupSettings();
+
         for (int i = 0; i < visualStates.Count; i++)
         {
             if (!GameSession.IsCyberStatusStepAligned(visualStates[i].exactCyberStatus))
@@ -220,7 +229,24 @@ public class CyberStatusBarUI : MonoBehaviour
             exactValueText = CreateOrFindText(parentRect, "CyberStatusValueText", exactValueOffset, 26f, TextAlignmentOptions.Center, FontStyles.Bold);
 
         if (deltaPopupText == null)
-            deltaPopupText = CreateOrFindText(parentRect, "CyberStatusDeltaPopup", deltaPopupOffset, 28f, TextAlignmentOptions.Center, FontStyles.Bold);
+            deltaPopupText = CreateOrFindText(parentRect, "CyberStatusDeltaPopup", deltaPopupOffset, 28f, TextAlignmentOptions.MidlineLeft, FontStyles.Bold);
+    }
+
+    private void UpgradeLegacyDeltaPopupSettings()
+    {
+        if (Approximately(deltaPopupOffset, LegacyCenteredDeltaPopupOffset))
+            deltaPopupOffset = DefaultRightSideDeltaPopupOffset;
+
+        if (Mathf.Approximately(deltaPopupDuration, LegacyDeltaPopupDuration))
+            deltaPopupDuration = 5f;
+
+        if (Mathf.Approximately(deltaPopupRise, 22f))
+            deltaPopupRise = 12f;
+    }
+
+    private static bool Approximately(Vector2 left, Vector2 right)
+    {
+        return Mathf.Approximately(left.x, right.x) && Mathf.Approximately(left.y, right.y);
     }
 
     private TMP_Text CreateOrFindText(RectTransform parentRect, string objectName, Vector2 anchoredPosition, float fontSize, TextAlignmentOptions alignment, FontStyles fontStyle)
@@ -241,11 +267,23 @@ public class CyberStatusBarUI : MonoBehaviour
         }
 
         RectTransform textRect = text.rectTransform;
-        textRect.anchorMin = new Vector2(0.5f, 1f);
-        textRect.anchorMax = new Vector2(0.5f, 1f);
-        textRect.pivot = new Vector2(0.5f, 0f);
+        bool isDeltaPopup = string.Equals(objectName, "CyberStatusDeltaPopup", StringComparison.Ordinal);
+        if (isDeltaPopup)
+        {
+            textRect.anchorMin = new Vector2(1f, 0.5f);
+            textRect.anchorMax = new Vector2(1f, 0.5f);
+            textRect.pivot = new Vector2(0f, 0.5f);
+            textRect.sizeDelta = new Vector2(112f, 36f);
+        }
+        else
+        {
+            textRect.anchorMin = new Vector2(0.5f, 1f);
+            textRect.anchorMax = new Vector2(0.5f, 1f);
+            textRect.pivot = new Vector2(0.5f, 0f);
+            textRect.sizeDelta = new Vector2(180f, 36f);
+        }
+
         textRect.anchoredPosition = anchoredPosition;
-        textRect.sizeDelta = new Vector2(180f, 36f);
 
         if (TMP_Settings.defaultFontAsset != null)
             text.font = TMP_Settings.defaultFontAsset;

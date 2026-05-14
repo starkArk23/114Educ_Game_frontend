@@ -23,6 +23,16 @@ public class GameSession : MonoBehaviour
     }
 
     [Serializable]
+    public struct TrustTokenChange
+    {
+        public int previousValue;
+        public int currentValue;
+        public int delta;
+        public string source;
+        public string reason;
+    }
+
+    [Serializable]
     public struct CyberStatusEffect
     {
         public int delta;
@@ -73,6 +83,17 @@ public class GameSession : MonoBehaviour
     {
         public string id;
         public string operatorName;
+    }
+
+    [Serializable]
+    public class SecurityReportDetail
+    {
+        public string id;
+        public string saveSlotId;
+        public string summary;
+        public int finalCyberStatus;
+        public int finalTrustTokens;
+        public Dictionary<string, object> detailedJson;
     }
 
     [Serializable]
@@ -139,6 +160,7 @@ public class GameSession : MonoBehaviour
     private int currentTrustTokens;
     private PendingRestoreState pendingRestore;
     private bool forceFreshSaveSlot;
+    private SecurityReportDetail latestSecurityReport;
 
     public static GameSession Instance
     {
@@ -158,7 +180,9 @@ public class GameSession : MonoBehaviour
     public bool HasActiveSaveSlot => !string.IsNullOrWhiteSpace(activeSaveSlotId);
     public bool HasPendingRestore => pendingRestore != null;
     public PendingRestoreState CurrentPendingRestore => pendingRestore;
+    public SecurityReportDetail LatestSecurityReport => latestSecurityReport;
     public event Action<CyberStatusChange> CyberStatusChanged;
+    public event Action<TrustTokenChange> TrustTokensChanged;
 
     public void PrepareNewGame()
     {
@@ -226,24 +250,41 @@ public class GameSession : MonoBehaviour
     private bool UpdateCurrentStats(int cyberStatus, int trustTokens, string source, string reason)
     {
         int previousCyberStatus = currentCyberStatus;
+        int previousTrustTokens = currentTrustTokens;
         int clampedCyberStatus = Mathf.Clamp(cyberStatus, MinCyberStatus, MaxCyberStatus);
+        int clampedTrustTokens = Mathf.Max(0, trustTokens);
 
         currentCyberStatus = clampedCyberStatus;
-        currentTrustTokens = Mathf.Max(0, trustTokens);
+        currentTrustTokens = clampedTrustTokens;
 
-        if (previousCyberStatus == currentCyberStatus)
-            return false;
+        bool cyberStatusChanged = previousCyberStatus != currentCyberStatus;
+        bool trustTokensChanged = previousTrustTokens != currentTrustTokens;
 
-        CyberStatusChanged?.Invoke(new CyberStatusChange
+        if (cyberStatusChanged)
         {
-            previousValue = previousCyberStatus,
-            currentValue = currentCyberStatus,
-            delta = currentCyberStatus - previousCyberStatus,
-            source = source ?? string.Empty,
-            reason = reason ?? string.Empty
-        });
+            CyberStatusChanged?.Invoke(new CyberStatusChange
+            {
+                previousValue = previousCyberStatus,
+                currentValue = currentCyberStatus,
+                delta = currentCyberStatus - previousCyberStatus,
+                source = source ?? string.Empty,
+                reason = reason ?? string.Empty
+            });
+        }
 
-        return true;
+        if (trustTokensChanged)
+        {
+            TrustTokensChanged?.Invoke(new TrustTokenChange
+            {
+                previousValue = previousTrustTokens,
+                currentValue = currentTrustTokens,
+                delta = currentTrustTokens - previousTrustTokens,
+                source = source ?? string.Empty,
+                reason = reason ?? string.Empty
+            });
+        }
+
+        return cyberStatusChanged || trustTokensChanged;
     }
 
     public void SetCurrentStats(int cyberStatus, int trustTokens)
@@ -530,6 +571,63 @@ public class GameSession : MonoBehaviour
             $"{apiBaseUrl}/save-slots/{activeSaveSlotId}/story/interactions",
             requestBody,
             onComplete));
+    }
+
+    public IEnumerator GenerateSecurityReport(Action<SecurityReportDetail, string> onComplete)
+    {
+        string saveSlotError = null;
+        yield return StartCoroutine(EnsureActiveSaveSlot(error => saveSlotError = error));
+
+        if (!string.IsNullOrEmpty(saveSlotError))
+        {
+            onComplete?.Invoke(null, saveSlotError);
+            yield break;
+        }
+
+        string requestBody = JsonConvert.SerializeObject(new Dictionary<string, string>
+        {
+            { "saveSlotId", activeSaveSlotId }
+        });
+
+        string responseText = null;
+        string requestError = null;
+        yield return StartCoroutine(SendRequest("POST", $"{apiBaseUrl}/reports", requestBody, (body, error) =>
+        {
+            responseText = body;
+            requestError = error;
+        }));
+
+        if (!string.IsNullOrEmpty(requestError))
+        {
+            onComplete?.Invoke(null, requestError);
+            yield break;
+        }
+
+        if (string.IsNullOrWhiteSpace(responseText))
+        {
+            onComplete?.Invoke(null, "Backend returned an empty report response.");
+            yield break;
+        }
+
+        SecurityReportDetail report;
+        try
+        {
+            report = JsonConvert.DeserializeObject<SecurityReportDetail>(responseText);
+        }
+        catch (JsonException exception)
+        {
+            onComplete?.Invoke(null, $"Unable to read security report: {exception.Message}");
+            yield break;
+        }
+
+        if (report == null || string.IsNullOrWhiteSpace(report.id))
+        {
+            onComplete?.Invoke(null, "Backend returned an invalid security report.");
+            yield break;
+        }
+
+        latestSecurityReport = report;
+        onComplete?.Invoke(report, null);
     }
 
     public void ClearPendingRestore()

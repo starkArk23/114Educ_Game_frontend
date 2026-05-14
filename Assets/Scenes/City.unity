@@ -8876,7 +8876,7 @@ Camera:
   m_Enabled: 1
   serializedVersion: 2
   m_ClearFlags: 2
-  m_BackGroundColor: {r: 0.19215687, g: 0.3019608, b: 0.4745098, a: 0}
+  m_BackGroundColor: {r: 0, g: 0, b: 0, a: 0}
   m_projectionMatrixMode: 1
   m_GateFitMode: 2
   m_FOVAxisMode: 0
@@ -8901,7 +8901,7 @@ Camera:
   far clip plane: 1000
   field of view: 60
   orthographic: 1
-  orthographic size: 24.103195
+  orthographic size: 3
   m_Depth: -1
   m_CullingMask:
     serializedVersion: 2
@@ -84195,7 +84195,7 @@ MonoBehaviour:
   interactableSource: {fileID: 1848223730}
   requiredChapterKey: chapter1
   activeNodeKeys:
-  - chapter1.explore_gate
+  - chapter1.anchor_intro
   questMarkerAnchor: {fileID: 949585104}
   questMarkerOffset: {x: 0, y: 2.1, z: 0}
   hideWhenDisabled: 1
@@ -84214,11 +84214,11 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::StoryInteractionPoint
   storyManager: {fileID: 0}
   interactionId: chapter1.anchor
-  groupKey: chapter1.room_explore
-  speaker: Avi
+  groupKey: chapter1.anchor_activation
+  speaker: SYSTEM
   title: System Anchor
-  bodyText: The anchor hums with a steady pulse. Stable states are recorded here
-    so the system can recover from bad calls.
+  bodyText: The crystal glows brighter for a moment. A faint hum resonates through
+    the Core.
   promptText: Press E to check
 --- !u!61 &1848223731
 BoxCollider2D:

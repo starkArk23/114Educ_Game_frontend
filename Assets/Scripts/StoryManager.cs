@@ -2,11 +2,18 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 
 public class StoryManager : MonoBehaviour
 {
     private const string MovementLockId = "StoryDialogue";
     private const string WakeTransitionNodeKey = "opening.wake";
+    private const string HallwaySceneName = "HallwayScene";
+    private const string HallwayArrivalSpawnPointId = "FromRoomScene";
+    private const string HallwayArrivalNodeKey = "chapter1.avi_intro";
+    private const string SystemCoreSceneName = "SystemCoreScene";
+    private const string SystemCoreArrivalSpawnPointId = "FromHallway";
+    private const string SystemCoreArrivalNodeKey = "chapter1.anchor_intro";
 
     [SerializeField] private DialogueManager dialogueManager;
     [SerializeField] private ChoiceLogUI choiceLogUI;
@@ -26,11 +33,39 @@ public class StoryManager : MonoBehaviour
     public string CurrentNodeKey => currentNode?.nodeKey ?? string.Empty;
     public string CurrentChapterKey => currentNode?.chapterKey ?? string.Empty;
     public bool CanContinueCurrentNode => !requestInFlight && currentNode != null && currentNode.canContinue;
+    public bool IsRequestInFlight => requestInFlight;
 
     private void OnEnable()
     {
-        if (autoStartOnEnable)
-            StartStory();
+        if (!autoStartOnEnable)
+            return;
+
+        EnsureSceneSetupComponents();
+
+        if (TryHandleSystemCoreArrivalStart())
+            return;
+
+        if (string.IsNullOrWhiteSpace(startNodeKey))
+        {
+            if (IsHallwayScene())
+                return;
+
+            ResumeCurrentStory();
+            return;
+        }
+
+        StartStory();
+    }
+
+    private void Start()
+    {
+        if (!autoStartOnEnable || !string.IsNullOrWhiteSpace(startNodeKey) || !IsHallwayScene())
+            return;
+
+        if (TryHandleHallwayArrivalStart())
+            return;
+
+        ResumeCurrentStory();
     }
 
     public void StartStory()
@@ -48,6 +83,84 @@ public class StoryManager : MonoBehaviour
             return;
 
         StartCoroutine(GameSession.Instance.GetCurrentStoryNode(null, HandleNodeResponse));
+    }
+
+    public void RefreshCurrentNodePresentation()
+    {
+        if (requestInFlight || currentNode == null)
+            return;
+
+        QueueNodePresentation(currentNode);
+    }
+
+    private bool TryHandleHallwayArrivalStart()
+    {
+        if (!IsHallwayScene())
+            return false;
+
+        if (!RuntimeSceneTransition.ConsumeLatestArrival(HallwaySceneName, HallwayArrivalSpawnPointId))
+            return false;
+
+        StartCoroutine(RefreshArrivalStoryRoutine(HallwayArrivalNodeKey));
+        return true;
+    }
+
+    private bool TryHandleSystemCoreArrivalStart()
+    {
+        if (!IsSystemCoreScene())
+            return false;
+
+        if (!RuntimeSceneTransition.ConsumeLatestArrival(SystemCoreSceneName, SystemCoreArrivalSpawnPointId))
+            return false;
+
+        StartCoroutine(RefreshArrivalStoryRoutine(SystemCoreArrivalNodeKey));
+        return true;
+    }
+
+    private static bool IsHallwayScene()
+    {
+        Scene activeScene = SceneManager.GetActiveScene();
+        return string.Equals(activeScene.name, HallwaySceneName, StringComparison.Ordinal);
+    }
+
+    private static bool IsSystemCoreScene()
+    {
+        Scene activeScene = SceneManager.GetActiveScene();
+        return string.Equals(activeScene.name, SystemCoreSceneName, StringComparison.Ordinal);
+    }
+
+    private void EnsureSceneSetupComponents()
+    {
+        if (IsHallwayScene() && GetComponent<Chapter1AviSceneController>() == null)
+            gameObject.AddComponent<Chapter1AviSceneController>();
+
+        if (IsSystemCoreScene() && GetComponent<Chapter1CoreSceneSetup>() == null)
+            gameObject.AddComponent<Chapter1CoreSceneSetup>();
+    }
+
+    private IEnumerator RefreshArrivalStoryRoutine(string nodeKey)
+    {
+        for (int frame = 0; frame < 5; frame++)
+            yield return null;
+
+        float timeoutSeconds = 1f;
+        while (requestInFlight && timeoutSeconds > 0f)
+        {
+            timeoutSeconds -= Time.unscaledDeltaTime;
+            yield return null;
+        }
+
+        DialogueManager manager = ResolveDialogueManager();
+        if (manager != null)
+            manager.HideDialoguePanel();
+
+        if (string.Equals(CurrentNodeKey, nodeKey, StringComparison.Ordinal))
+        {
+            RefreshCurrentNodePresentation();
+            yield break;
+        }
+
+        StartCoroutine(GameSession.Instance.GetCurrentStoryNode(nodeKey, HandleNodeResponse));
     }
 
     public IEnumerator ContinueCurrentNodeSilently(Action<GameSession.StoryNodeDetail, string> onComplete)
@@ -190,7 +303,7 @@ public class StoryManager : MonoBehaviour
             {
                 GameSession.StoryChoiceDetail choice = currentChoices[index];
                 labels[index] = choice.trustTokenCost > 0
-                    ? $"{choice.label} (-{choice.trustTokenCost} Token)"
+                    ? $"{choice.label} (-{choice.trustTokenCost} {(choice.trustTokenCost == 1 ? "Trust Token" : "Trust Tokens")})"
                     : choice.label;
             }
 
@@ -213,8 +326,48 @@ public class StoryManager : MonoBehaviour
             yield break;
         }
 
-        ShowDialogue(GetNodeTitle(node), node.bodyText, new[] { node.endChapter ? "Close" : "Continue" }, _ => CloseStoryDialogue());
+        ShowDialogue(GetNodeTitle(node), node.bodyText, new[] { node.endChapter ? "Close" : "Continue" }, _ => HandleTerminalNode(node));
         presentationRoutine = null;
+    }
+
+    private void HandleTerminalNode(GameSession.StoryNodeDetail node)
+    {
+        if (node != null && node.endChapter)
+        {
+            StartCoroutine(GenerateEndChapterReportAndClose(node));
+            return;
+        }
+
+        CloseStoryDialogue();
+    }
+
+    private IEnumerator GenerateEndChapterReportAndClose(GameSession.StoryNodeDetail node)
+    {
+        if (requestInFlight)
+            yield break;
+
+        requestInFlight = true;
+
+        GameSession.SecurityReportDetail report = null;
+        string requestError = null;
+        yield return StartCoroutine(GameSession.Instance.GenerateSecurityReport((response, error) =>
+        {
+            report = response;
+            requestError = error;
+        }));
+
+        requestInFlight = false;
+
+        if (!string.IsNullOrEmpty(requestError))
+        {
+            ReportError(requestError);
+            yield break;
+        }
+
+        if (report != null && choiceLogUI != null)
+            choiceLogUI.Show($"Security report logged. Accuracy-first summary saved with {report.finalTrustTokens} Trust Tokens.");
+
+        CloseStoryDialogue();
     }
 
     private System.Collections.IEnumerator WaitForPresentationGate(GameSession.StoryNodeDetail node)
@@ -223,16 +376,27 @@ public class StoryManager : MonoBehaviour
             yield break;
 
         StoryNpcEntranceController mentorPresentation = ResolvePresentationController(node.nodeKey);
-        if (mentorPresentation == null || mentorPresentation.IsPresentationComplete(node.nodeKey))
+        Chapter1AviSceneController aviPresentation = mentorPresentation == null
+            ? ResolveAviPresentationController(node.nodeKey)
+            : null;
+
+        bool mentorPending = mentorPresentation != null && !mentorPresentation.IsPresentationComplete(node.nodeKey);
+        bool aviPending = aviPresentation != null && !aviPresentation.IsPresentationComplete(node.nodeKey);
+        if (!mentorPending && !aviPending)
             yield break;
 
         LockMovement();
 
         CameraFocusController focusController = FindFirstObjectByType<CameraFocusController>();
-        if (focusController != null)
-            focusController.SetFocusTarget(mentorPresentation.transform, true);
+        Transform focusTarget = mentorPending
+            ? mentorPresentation.transform
+            : aviPresentation.PresentationTransform;
+        if (focusController != null && focusTarget != null)
+            focusController.SetFocusTarget(focusTarget, true);
 
-        yield return new WaitUntil(() => mentorPresentation == null || mentorPresentation.IsPresentationComplete(node.nodeKey));
+        yield return new WaitUntil(() =>
+            (mentorPresentation == null || mentorPresentation.IsPresentationComplete(node.nodeKey))
+            && (aviPresentation == null || aviPresentation.IsPresentationComplete(node.nodeKey)));
 
         if (mentorEntranceCameraHold > 0f)
             yield return new WaitForSeconds(mentorEntranceCameraHold);
@@ -255,6 +419,18 @@ public class StoryManager : MonoBehaviour
         }
 
         return null;
+    }
+
+    private Chapter1AviSceneController ResolveAviPresentationController(string nodeKey)
+    {
+        if (string.IsNullOrWhiteSpace(nodeKey))
+            return null;
+
+        Chapter1AviSceneController controller = GetComponent<Chapter1AviSceneController>();
+        if (controller == null)
+            controller = gameObject.AddComponent<Chapter1AviSceneController>();
+
+        return controller.ControlsNode(nodeKey) ? controller : null;
     }
 
     private void OnDialogueSelection(int selectionIndex)
@@ -347,11 +523,11 @@ public class StoryManager : MonoBehaviour
         currentChoices = nextNode.choices ?? new List<GameSession.StoryChoiceDetail>();
 
         DialogueManager manager = ResolveDialogueManager();
-        if (manager != null)
-            manager.HideDialoguePanel();
-
         if (wakeTransitionDelaySeconds > 0f)
             yield return new WaitForSecondsRealtime(wakeTransitionDelaySeconds);
+
+        if (manager != null)
+            manager.HideDialoguePanel();
 
         RuntimeSceneTransition.TransitionWithWakeBlink(wakeTransitionSceneName, wakeTransitionSpawnPointId, wakeTransitionBlinkCount);
     }

@@ -50,6 +50,25 @@ public class PlayerMovement : MonoBehaviour
             movementLocks.Remove(lockId);
     }
 
+    public static void ClearMovementLocksExcept(string preservedLockId = null)
+    {
+        if (string.IsNullOrWhiteSpace(preservedLockId))
+        {
+            movementLocks.Clear();
+            return;
+        }
+
+        string preservedLock = preservedLockId.Trim();
+        if (movementLocks.Count == 0)
+            return;
+
+        bool hadPreservedLock = movementLocks.Contains(preservedLock);
+        movementLocks.Clear();
+
+        if (hadPreservedLock)
+            movementLocks.Add(preservedLock);
+    }
+
     public static void ApplySavedPositionOnce(Vector3 worldPosition)
     {
         pendingSavedPosition = worldPosition;
