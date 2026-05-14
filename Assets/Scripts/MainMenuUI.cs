@@ -26,7 +26,7 @@ public class MainMenuUI : MonoBehaviour
 
         Time.timeScale = 1f;
         PlayerMovement.RemoveMovementLock("Pause");
-        LoadingScreen.skipNameEntry = false;
+        LoadingScreen.skipNameEntry = !string.IsNullOrWhiteSpace(LoadingScreen.operatorName);
         LoadingScreen.nextSceneName = gameSceneName;
         SceneManager.LoadScene(loadingSceneName);
     }

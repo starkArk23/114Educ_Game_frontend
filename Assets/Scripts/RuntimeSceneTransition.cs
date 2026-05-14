@@ -7,6 +7,7 @@ using UnityEngine.UI;
 public class RuntimeSceneTransition : MonoBehaviour
 {
     private const string MovementLockId = "SceneTransition";
+    private const float TransitionFailSafePaddingSeconds = 1f;
 
     private static RuntimeSceneTransition instance;
     private static string pendingSpawnPointId;
@@ -21,7 +22,11 @@ public class RuntimeSceneTransition : MonoBehaviour
     private Canvas transitionCanvas;
     private Image fadeImage;
     private bool isTransitioning;
+    private string transitionTargetSceneName = string.Empty;
+    private float transitionStartedAt;
+    private Coroutine activeTransitionRoutine;
     private Coroutine spawnReapplyRoutine;
+    private Coroutine transitionFailSafeRoutine;
 
     public static bool IsTransitioning => instance != null && instance.isTransitioning;
 
@@ -54,7 +59,10 @@ public class RuntimeSceneTransition : MonoBehaviour
         }
 
         EnsureInstance();
-        instance.StartCoroutine(instance.TransitionRoutine(sceneName.Trim(), spawnPointId));
+        if (!instance.PrepareForTransition(sceneName.Trim()))
+            return;
+
+        instance.activeTransitionRoutine = instance.StartCoroutine(instance.TransitionRoutine(sceneName.Trim(), spawnPointId));
     }
 
     public static void TransitionWithWakeBlink(string sceneName, string spawnPointId, int blinkCount = 2)
@@ -66,7 +74,10 @@ public class RuntimeSceneTransition : MonoBehaviour
         }
 
         EnsureInstance();
-        instance.StartCoroutine(instance.WakeTransitionRoutine(sceneName.Trim(), spawnPointId, Mathf.Max(1, blinkCount)));
+        if (!instance.PrepareForTransition(sceneName.Trim()))
+            return;
+
+        instance.activeTransitionRoutine = instance.StartCoroutine(instance.WakeTransitionRoutine(sceneName.Trim(), spawnPointId, Mathf.Max(1, blinkCount)));
     }
 
     private static void EnsureInstance()
@@ -108,7 +119,10 @@ public class RuntimeSceneTransition : MonoBehaviour
             yield break;
 
         isTransitioning = true;
+        transitionTargetSceneName = sceneName;
+        transitionStartedAt = Time.unscaledTime;
         pendingSpawnPointId = string.IsNullOrWhiteSpace(spawnPointId) ? string.Empty : spawnPointId.Trim();
+        StartTransitionFailSafe(sceneName);
 
         PlayerMovement.AddMovementLock(MovementLockId);
         yield return FadeOverlay(0f, 1f, fadeOutDuration);
@@ -123,8 +137,8 @@ public class RuntimeSceneTransition : MonoBehaviour
         yield return null;
         yield return FadeOverlay(1f, 0f, fadeInDuration);
         PlayerMovement.RemoveMovementLock(MovementLockId);
-
-        isTransitioning = false;
+        activeTransitionRoutine = null;
+        CompleteTransition();
     }
 
     private IEnumerator WakeTransitionRoutine(string sceneName, string spawnPointId, int blinkCount)
@@ -133,7 +147,10 @@ public class RuntimeSceneTransition : MonoBehaviour
             yield break;
 
         isTransitioning = true;
+        transitionTargetSceneName = sceneName;
+        transitionStartedAt = Time.unscaledTime;
         pendingSpawnPointId = string.IsNullOrWhiteSpace(spawnPointId) ? string.Empty : spawnPointId.Trim();
+        StartTransitionFailSafe(sceneName);
 
         PlayerMovement.AddMovementLock(MovementLockId);
 
@@ -155,13 +172,74 @@ public class RuntimeSceneTransition : MonoBehaviour
         yield return null;
         yield return FadeOverlay(1f, 0f, fadeInDuration);
         PlayerMovement.RemoveMovementLock(MovementLockId);
+        activeTransitionRoutine = null;
+        CompleteTransition();
+    }
 
-        isTransitioning = false;
+    private bool PrepareForTransition(string sceneName)
+    {
+        if (!isTransitioning)
+            return true;
+
+        if (!IsTransitionStale())
+            return false;
+
+        Debug.LogWarning($"[RuntimeSceneTransition] Resetting stale transition to '{transitionTargetSceneName}' before starting '{sceneName}'.");
+        ResetTransitionState();
+        return true;
+    }
+
+    private void StartTransitionFailSafe(string sceneName)
+    {
+        StopTransitionFailSafe();
+        transitionFailSafeRoutine = StartCoroutine(TransitionFailSafeRoutine(sceneName));
+    }
+
+    private void StopTransitionFailSafe()
+    {
+        if (transitionFailSafeRoutine != null)
+        {
+            StopCoroutine(transitionFailSafeRoutine);
+            transitionFailSafeRoutine = null;
+        }
+    }
+
+    private IEnumerator TransitionFailSafeRoutine(string sceneName)
+    {
+        float timeoutSeconds = fadeOutDuration + blackPauseDuration + fadeInDuration + TransitionFailSafePaddingSeconds;
+        yield return new WaitForSecondsRealtime(Mathf.Max(1f, timeoutSeconds));
+
+        if (!isTransitioning)
+        {
+            transitionFailSafeRoutine = null;
+            yield break;
+        }
+
+        Scene activeScene = SceneManager.GetActiveScene();
+        if (!string.Equals(activeScene.name, sceneName, StringComparison.Ordinal))
+        {
+            Debug.LogWarning($"[RuntimeSceneTransition] Transition to '{sceneName}' stalled; forcing scene load.");
+            SceneManager.LoadScene(sceneName);
+            yield return null;
+        }
+
+        SetOverlayAlpha(0f);
+        PlayerMovement.RemoveMovementLock(MovementLockId);
+        CompleteTransition();
     }
 
     private void OnSceneLoaded(Scene scene, LoadSceneMode _mode)
     {
-        PlayerMovement.ClearMovementLocksExcept(MovementLockId);
+        PlayerMovement.ResetMovementState(MovementLockId);
+
+        if (isTransitioning
+            && !string.IsNullOrWhiteSpace(transitionTargetSceneName)
+            && !string.Equals(scene.name, transitionTargetSceneName, StringComparison.Ordinal))
+        {
+            Debug.LogWarning($"[RuntimeSceneTransition] Scene '{scene.name}' loaded while transitioning to '{transitionTargetSceneName}'. Resetting interrupted transition state.");
+            ResetTransitionState();
+            return;
+        }
 
         if (isTransitioning)
         {
@@ -193,8 +271,48 @@ public class RuntimeSceneTransition : MonoBehaviour
             return;
         }
 
-        Debug.LogWarning($"[RuntimeSceneTransition] No SceneSpawnPoint with id '{pendingSpawnPointId}' was found in scene '{scene.name}'.");
+        if (isTransitioning)
+            Debug.LogWarning($"[RuntimeSceneTransition] No SceneSpawnPoint with id '{pendingSpawnPointId}' was found in scene '{scene.name}'.");
         pendingSpawnPointId = string.Empty;
+    }
+
+    private bool IsTransitionStale()
+    {
+        float timeoutSeconds = fadeOutDuration + blackPauseDuration + fadeInDuration + TransitionFailSafePaddingSeconds;
+        return Time.unscaledTime - transitionStartedAt >= Mathf.Max(1f, timeoutSeconds);
+    }
+
+    private void CompleteTransition()
+    {
+        StopTransitionFailSafe();
+        isTransitioning = false;
+        transitionTargetSceneName = string.Empty;
+        transitionStartedAt = 0f;
+    }
+
+    private void ResetTransitionState()
+    {
+        StopTransitionFailSafe();
+        if (activeTransitionRoutine != null)
+        {
+            StopCoroutine(activeTransitionRoutine);
+            activeTransitionRoutine = null;
+        }
+
+        if (spawnReapplyRoutine != null)
+        {
+            StopCoroutine(spawnReapplyRoutine);
+            spawnReapplyRoutine = null;
+        }
+
+        pendingSpawnPointId = string.Empty;
+        SetOverlayAlpha(0f);
+        PlayerMovement.RemoveMovementLock(MovementLockId);
+        latestArrivalSceneName = string.Empty;
+        latestArrivalSpawnPointId = string.Empty;
+        isTransitioning = false;
+        transitionTargetSceneName = string.Empty;
+        transitionStartedAt = 0f;
     }
 
     private static void ApplySpawn(Vector3 worldPosition)

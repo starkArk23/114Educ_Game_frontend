@@ -88,6 +88,14 @@ public class LoadingScreen : MonoBehaviour
         if (!waitingForName || terminalText == null || nameSubmitted)
             return;
 
+        if (!string.IsNullOrWhiteSpace(operatorName))
+        {
+            waitingForName = false;
+            nameSubmitted = true;
+            terminalBaseText = terminalText.text.TrimEnd('\r', '\n');
+            return;
+        }
+
         HandleNameInput();
         UpdatePromptLine();
     }
@@ -174,7 +182,7 @@ public class LoadingScreen : MonoBehaviour
 
     private void BeginNameEntry()
     {
-        if (skipNameEntry && !string.IsNullOrWhiteSpace(operatorName))
+        if (!string.IsNullOrWhiteSpace(operatorName))
         {
             waitingForName = false;
             nameSubmitted = true;
@@ -248,7 +256,12 @@ public class LoadingScreen : MonoBehaviour
         waitingForName = false;
 
         string name = string.IsNullOrEmpty(operatorName) ? "UNKNOWN" : operatorName;
-        terminalBaseText = terminalBaseText + "\n\n" + name;
+        if (!terminalBaseText.EndsWith("\n\n" + name, System.StringComparison.Ordinal)
+            && !string.Equals(terminalBaseText, name, System.StringComparison.Ordinal))
+        {
+            terminalBaseText = terminalBaseText + "\n\n" + name;
+        }
+
         terminalText.text = terminalBaseText;
 
         if (string.IsNullOrEmpty(postNameScript))

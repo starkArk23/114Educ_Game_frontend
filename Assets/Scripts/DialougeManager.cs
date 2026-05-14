@@ -34,6 +34,12 @@ public class DialogueManager : MonoBehaviour
     private Coroutine dialogueTypingCoroutine;
     private string activeDialogueFullText = string.Empty;
     private Action activeDialogueComplete;
+    private TextOverflowModes defaultDialogueOverflowMode = TextOverflowModes.Overflow;
+    private bool hasDefaultDialogueOverflowMode;
+    private int pagedDialogueButtonIndex = -1;
+    private int pagedDialoguePageCount;
+    private int pagedDialogueCurrentPage = 1;
+    private Action<int> pagedDialogueChoiceHandler;
     private GameObject hintOverlayPanel;
     private Image hintPortraitImage;
     private TMP_Text hintTitleText;
@@ -159,6 +165,79 @@ public class DialogueManager : MonoBehaviour
     {
         if (btn != null) btn.gameObject.SetActive(active);
     }
+
+    private bool TryShowPagedDialogue(string title, string body, string continueLabel, int buttonIndex, Action<int> onChoiceSelected)
+    {
+        if (dialogueText == null)
+            return false;
+
+        CacheDialogueTextLayoutDefaults();
+        dialogueText.overflowMode = TextOverflowModes.Page;
+
+        string fullText = ComposeBodyText(title, body);
+        dialogueText.text = fullText;
+        dialogueText.pageToDisplay = 1;
+        dialogueText.ForceMeshUpdate();
+
+        int pageCount = Mathf.Max(1, dialogueText.textInfo.pageCount);
+        if (pageCount <= 1)
+        {
+            RestoreDialogueTextLayout();
+            return false;
+        }
+
+        activeDialogueFullText = fullText;
+        activeDialogueComplete = null;
+        pagedDialogueButtonIndex = buttonIndex;
+        pagedDialoguePageCount = pageCount;
+        pagedDialogueCurrentPage = 1;
+        pagedDialogueChoiceHandler = onChoiceSelected;
+
+        SetupPagedDialogueButton(choiceAButton, continueLabel);
+        return true;
+    }
+
+    private void SetupPagedDialogueButton(Button button, string label)
+    {
+        if (button == null)
+            return;
+
+        SetButtonActive(button, true);
+
+        TMP_Text buttonLabel = GetButtonLabel(button);
+        if (buttonLabel != null)
+            buttonLabel.text = string.IsNullOrWhiteSpace(label) ? "Continue" : label;
+
+        button.onClick.RemoveAllListeners();
+        button.onClick.AddListener(AdvancePagedDialogue);
+    }
+
+    private void AdvancePagedDialogue()
+    {
+        if (dialogueText == null)
+            return;
+
+        if (pagedDialogueCurrentPage < pagedDialoguePageCount)
+        {
+            pagedDialogueCurrentPage++;
+            dialogueText.pageToDisplay = pagedDialogueCurrentPage;
+            return;
+        }
+
+        int buttonIndex = pagedDialogueButtonIndex;
+        Action<int> choiceHandler = pagedDialogueChoiceHandler;
+        pagedDialogueButtonIndex = -1;
+        pagedDialoguePageCount = 0;
+        pagedDialogueCurrentPage = 1;
+        pagedDialogueChoiceHandler = null;
+        RestoreDialogueTextLayout();
+
+        if (dialoguePanel != null)
+            dialoguePanel.SetActive(false);
+
+        choiceHandler?.Invoke(buttonIndex);
+    }
+
     public void Show(string title, string body, string[] choices, Action<int> onChoiceSelected)
     {
         EnsureUiReferences();
@@ -177,8 +256,12 @@ public class DialogueManager : MonoBehaviour
         SetTitle(title);
 
         ResetChoices();
+        RestoreDialogueTextLayout();
 
         int count = choices != null ? Mathf.Min(choices.Length, 4) : 0;
+        if (count == 1 && TryShowPagedDialogue(title, body, choices[0], 0, onChoiceSelected))
+            return;
+
         BeginDialogueBody(title, body, () =>
         {
             if (count >= 1) SetupChoiceButton(choiceAButton, choices[0], 0, onChoiceSelected);
@@ -204,11 +287,13 @@ public class DialogueManager : MonoBehaviour
         PreparePanel();
         SetTitle(title);
         ResetChoices();
+        RestoreDialogueTextLayout();
         BeginDialogueBody(title, body, onBodyComplete);
     }
 
     public void HideDialoguePanel()
     {
+        RestoreDialogueTextLayout();
         if (dialoguePanel != null)
             dialoguePanel.SetActive(false);
     }
@@ -324,6 +409,7 @@ public class DialogueManager : MonoBehaviour
     private void BeginDialogueBody(string title, string body, Action onComplete)
     {
         EnsureUiReferences();
+        RestoreDialogueTextLayout();
 
         if (dialogueText == null)
         {
@@ -416,6 +502,7 @@ public class DialogueManager : MonoBehaviour
     private void PreparePanel()
     {
         EnsureUiReferences();
+        CacheDialogueTextLayoutDefaults();
 
         if (dialoguePanel == null)
             return;
@@ -590,6 +677,26 @@ public class DialogueManager : MonoBehaviour
 
         defaultPanelAnchoredPosition = panelRect.anchoredPosition;
         hasDefaultPanelPosition = true;
+    }
+
+    private void CacheDialogueTextLayoutDefaults()
+    {
+        if (hasDefaultDialogueOverflowMode || dialogueText == null)
+            return;
+
+        defaultDialogueOverflowMode = dialogueText.overflowMode;
+        hasDefaultDialogueOverflowMode = true;
+    }
+
+    private void RestoreDialogueTextLayout()
+    {
+        if (dialogueText == null)
+            return;
+
+        if (hasDefaultDialogueOverflowMode)
+            dialogueText.overflowMode = defaultDialogueOverflowMode;
+
+        dialogueText.pageToDisplay = 1;
     }
 
     private void SetTitle(string title)

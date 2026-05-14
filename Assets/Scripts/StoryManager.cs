@@ -12,6 +12,7 @@ public class StoryManager : MonoBehaviour
     private const string HallwaySceneName = "HallwayScene";
     private const string HallwayArrivalSpawnPointId = "FromRoomScene";
     private const string HallwayArrivalNodeKey = "chapter1.avi_intro";
+    private const float RequestStallTimeoutSeconds = 3f;
 
     [SerializeField] private DialogueManager dialogueManager;
     [SerializeField] private ChoiceLogUI choiceLogUI;
@@ -28,6 +29,10 @@ public class StoryManager : MonoBehaviour
     private bool requestInFlight;
     private bool pendingMikeHintPresentation;
     private Coroutine presentationRoutine;
+    private float requestStartedAt;
+    private bool recoveryRequestInFlight;
+
+    private bool isShuttingDown;
 
     public string CurrentNodeKey => currentNode?.nodeKey ?? string.Empty;
     public string CurrentChapterKey => currentNode?.chapterKey ?? string.Empty;
@@ -36,6 +41,8 @@ public class StoryManager : MonoBehaviour
 
     private void OnEnable()
     {
+        isShuttingDown = false;
+
         if (!autoStartOnEnable)
             return;
 
@@ -51,6 +58,17 @@ public class StoryManager : MonoBehaviour
         StartStory();
     }
 
+    private void OnDisable()
+    {
+        isShuttingDown = true;
+
+        if (presentationRoutine != null)
+        {
+            StopCoroutine(presentationRoutine);
+            presentationRoutine = null;
+        }
+    }
+
     private void Start()
     {
         if (!autoStartOnEnable || !string.IsNullOrWhiteSpace(startNodeKey) || !IsHallwayScene())
@@ -64,6 +82,9 @@ public class StoryManager : MonoBehaviour
 
     private void Update()
     {
+        if (requestInFlight && !recoveryRequestInFlight)
+            RecoverStalledRequestIfNeeded();
+
         if (!Input.GetKeyDown(KeyCode.H))
             return;
 
@@ -76,6 +97,7 @@ public class StoryManager : MonoBehaviour
             return;
 
         GameSession session = GameSession.Instance;
+        MarkRequestStarted();
         StartCoroutine(session.GetCurrentStoryNode(startNodeKey, HandleNodeResponse));
     }
 
@@ -84,6 +106,7 @@ public class StoryManager : MonoBehaviour
         if (requestInFlight)
             return;
 
+        MarkRequestStarted();
         StartCoroutine(GameSession.Instance.GetCurrentStoryNode(null, HandleNodeResponse));
     }
 
@@ -204,10 +227,10 @@ public class StoryManager : MonoBehaviour
         if (requestInFlight)
             return;
 
-        requestInFlight = true;
+        MarkRequestStarted();
         StartCoroutine(GameSession.Instance.RegisterStoryInteraction(interactionId, groupKey, (node, error) =>
         {
-            requestInFlight = false;
+            MarkRequestCompleted();
 
             if (!string.IsNullOrEmpty(error))
             {
@@ -236,7 +259,10 @@ public class StoryManager : MonoBehaviour
 
     private void HandleNodeResponse(GameSession.StoryNodeDetail node, string error)
     {
-        requestInFlight = false;
+        if (!CanHandleAsyncCallback())
+            return;
+
+        MarkRequestCompleted();
 
         if (!string.IsNullOrEmpty(error))
         {
@@ -257,6 +283,9 @@ public class StoryManager : MonoBehaviour
 
     private void QueueNodePresentation(GameSession.StoryNodeDetail node)
     {
+        if (!CanHandleAsyncCallback())
+            return;
+
         if (ShouldPresentMikeHintOverlay(node))
         {
             currentNode = node;
@@ -272,6 +301,44 @@ public class StoryManager : MonoBehaviour
             StopCoroutine(presentationRoutine);
 
         presentationRoutine = StartCoroutine(PresentNodeRoutine(node));
+    }
+
+    private bool CanHandleAsyncCallback()
+    {
+        return !isShuttingDown && this != null && gameObject != null && isActiveAndEnabled;
+    }
+
+    private void RecoverStalledRequestIfNeeded()
+    {
+        if (Time.unscaledTime - requestStartedAt < RequestStallTimeoutSeconds)
+            return;
+
+        recoveryRequestInFlight = true;
+        requestInFlight = false;
+        pendingMikeHintPresentation = false;
+        Debug.LogWarning("[StoryManager] Story request stalled; resyncing current node from backend.", this);
+        StartCoroutine(RecoverStalledRequestRoutine());
+    }
+
+    private IEnumerator RecoverStalledRequestRoutine()
+    {
+        yield return StartCoroutine(GameSession.Instance.GetCurrentStoryNode(null, (node, error) =>
+        {
+            recoveryRequestInFlight = false;
+            HandleNodeResponse(node, error);
+        }));
+    }
+
+    private void MarkRequestStarted()
+    {
+        requestInFlight = true;
+        requestStartedAt = Time.unscaledTime;
+    }
+
+    private void MarkRequestCompleted()
+    {
+        requestInFlight = false;
+        requestStartedAt = 0f;
     }
 
     private System.Collections.IEnumerator PresentNodeRoutine(GameSession.StoryNodeDetail node)
@@ -324,11 +391,10 @@ public class StoryManager : MonoBehaviour
             yield break;
 
         StoryNpcEntranceController mentorPresentation = ResolvePresentationController(node.nodeKey);
+        bool mentorPending = mentorPresentation != null && !mentorPresentation.IsPresentationComplete(node.nodeKey);
         Chapter1AviSceneController aviPresentation = mentorPresentation == null
             ? ResolveAviPresentationController(node.nodeKey)
             : null;
-
-        bool mentorPending = mentorPresentation != null && !mentorPresentation.IsPresentationComplete(node.nodeKey);
         bool aviPending = aviPresentation != null && !aviPresentation.IsPresentationComplete(node.nodeKey);
         if (!mentorPending && !aviPending)
             yield break;
@@ -407,7 +473,7 @@ public class StoryManager : MonoBehaviour
     private void TryTriggerMikeHint()
     {
         if (requestInFlight || currentNode == null)
-            return;
+        MarkRequestCompleted();
 
         if (!TryGetMikeHintChoice(out GameSession.StoryChoiceDetail mikeHintChoice))
             return;
@@ -596,7 +662,6 @@ public class StoryManager : MonoBehaviour
             if (candidate != null && candidate.HasUsableUi)
             {
                 dialogueManager = candidate;
-                return dialogueManager;
             }
         }
 

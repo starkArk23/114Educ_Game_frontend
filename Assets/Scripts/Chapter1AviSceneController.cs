@@ -6,6 +6,7 @@ using UnityEngine.SceneManagement;
 public class Chapter1AviSceneController : MonoBehaviour
 {
     private const string SupportedSceneName = "HallwayScene";
+    private const string AviIntroNodeKey = "chapter1.avi_intro";
     private const string AnchorIntroNodeKey = "chapter1.anchor_intro";
     private const string ExploreGateNodeKey = "chapter1.explore_gate";
     private const string AviObjectName = "AviStoryNPC";
@@ -43,7 +44,12 @@ public class Chapter1AviSceneController : MonoBehaviour
 
     public bool ControlsNode(string nodeKey)
     {
-        return false;
+        if (!SupportsCurrentScene() || string.IsNullOrWhiteSpace(nodeKey))
+            return false;
+
+        return string.Equals(nodeKey, AviIntroNodeKey, StringComparison.Ordinal)
+            || string.Equals(nodeKey, AnchorIntroNodeKey, StringComparison.Ordinal)
+            || string.Equals(nodeKey, ExploreGateNodeKey, StringComparison.Ordinal);
     }
 
     public bool IsPresentationComplete(string nodeKey)
