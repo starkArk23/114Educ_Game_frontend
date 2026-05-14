@@ -1,10 +1,10 @@
 fileFormatVersion: 2
-guid: 82319b1b8ea125847ad1a66277893647
+guid: 5aa6a2c0805a65845838352076dbd99a
 TextureImporter:
   internalIDToNameTable:
   - first:
-      213: -5959452202013055572
-    second: avi_right side left walk_0
+      213: -4876514323287862527
+    second: avi right side left_0
   externalObjects: {}
   serializedVersion: 13
   mipmaps:
@@ -100,12 +100,12 @@ TextureImporter:
     serializedVersion: 2
     sprites:
     - serializedVersion: 2
-      name: avi_right side left walk_0
+      name: avi right side left_0
       rect:
         serializedVersion: 2
-        x: 18
+        x: 19
         y: 7
-        width: 27
+        width: 24
         height: 40
       alignment: 0
       pivot: {x: 0, y: 0}
@@ -115,8 +115,8 @@ TextureImporter:
       physicsShape: []
       tessellationDetail: -1
       bones: []
-      spriteID: ca5a71bfbc5cb4da0800000000000000
-      internalID: -5959452202013055572
+      spriteID: 10392525f04235cb0800000000000000
+      internalID: -4876514323287862527
       vertices: []
       indices: 
       edges: []
@@ -135,7 +135,7 @@ TextureImporter:
     spriteCustomMetadata:
       entries: []
     nameFileIdTable:
-      avi_right side left walk_0: -5959452202013055572
+      avi right side left_0: -4876514323287862527
   mipmapLimitGroupName: 
   pSDRemoveMatte: 0
   userData: 
