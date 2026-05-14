@@ -197,11 +197,19 @@ public class GameSession : MonoBehaviour
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
     private static void Bootstrap()
     {
+        ConfigureRuntimeExecution();
         EnsureExists();
+    }
+
+    private static void ConfigureRuntimeExecution()
+    {
+        Application.runInBackground = true;
     }
 
     public static void EnsureExists()
     {
+        ConfigureRuntimeExecution();
+
         if (instance != null)
             return;
 
@@ -228,11 +236,13 @@ public class GameSession : MonoBehaviour
 
         instance = this;
         DontDestroyOnLoad(gameObject);
+        ConfigureRuntimeExecution();
         SyncOperatorNameFromLoadingScreen();
     }
 
     private void OnEnable()
     {
+        ConfigureRuntimeExecution();
         SceneManager.sceneLoaded += OnSceneLoaded;
     }
 
@@ -243,8 +253,14 @@ public class GameSession : MonoBehaviour
 
     private void OnSceneLoaded(Scene scene, LoadSceneMode _mode)
     {
+        ConfigureRuntimeExecution();
         SyncOperatorNameFromLoadingScreen();
         ApplyPendingRestore(scene);
+    }
+
+    private void Update()
+    {
+        ConfigureRuntimeExecution();
     }
 
     private bool UpdateCurrentStats(int cyberStatus, int trustTokens, string source, string reason)
