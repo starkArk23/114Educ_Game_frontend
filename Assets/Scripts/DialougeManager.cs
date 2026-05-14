@@ -1,13 +1,15 @@
 using System;
 using System.Collections;
-using System.Collections.Generic;
 using UnityEngine;
 using TMPro;
 using UnityEngine.UI;
 using UnityEngine.EventSystems;
+#if UNITY_EDITOR
+using UnityEditor;
+#endif
 public class DialogueManager : MonoBehaviour
 {
-    private const int MaxParagraphsPerPage = 4;
+    private const string MikePortraitAssetPath = "Assets/Characters/Story_Chars/Mike/mikeee.png";
 
     [Header("UI")]
     public GameObject dialoguePanel;
@@ -24,11 +26,19 @@ public class DialogueManager : MonoBehaviour
     [SerializeField] private float punctuationPause = 0.04f;
     [SerializeField] private float linePause = 0.12f;
 
+    [Header("Hint Overlay")]
+    [SerializeField] private Sprite mikeHintPortrait;
+
     private Vector2 defaultPanelAnchoredPosition;
     private bool hasDefaultPanelPosition;
     private Coroutine dialogueTypingCoroutine;
     private string activeDialogueFullText = string.Empty;
     private Action activeDialogueComplete;
+    private GameObject hintOverlayPanel;
+    private Image hintPortraitImage;
+    private TMP_Text hintTitleText;
+    private TMP_Text hintBodyText;
+    private Button hintContinueButton;
 
     public bool HasUsableUi
     {
@@ -53,6 +63,8 @@ public class DialogueManager : MonoBehaviour
 
         if (dialoguePanel != null)
             dialoguePanel.SetActive(false);
+
+        HideHintOverlay();
     }
 
     private void Update()
@@ -87,12 +99,13 @@ public class DialogueManager : MonoBehaviour
 
         int count = scenario.choices != null ? scenario.choices.Count : 0;
 
-        if (count >= 1) SetupChoiceButton(choiceAButton, scenario.choices[0]);
-        if (count >= 2) SetupChoiceButton(choiceBButton, scenario.choices[1]);
-        if (count >= 3) SetupChoiceButton(choiceCButton, scenario.choices[2]);
-        if (count >= 4) SetupChoiceButton(choiceDButton, scenario.choices[3]);
-
-        BeginDialogueBody(scenario.scenarioTitle, scenario.dialogueText, null);
+        BeginDialogueBody(scenario.scenarioTitle, scenario.dialogueText, () =>
+        {
+            if (count >= 1) SetupChoiceButton(choiceAButton, scenario.choices[0]);
+            if (count >= 2) SetupChoiceButton(choiceBButton, scenario.choices[1]);
+            if (count >= 3) SetupChoiceButton(choiceCButton, scenario.choices[2]);
+            if (count >= 4) SetupChoiceButton(choiceDButton, scenario.choices[3]);
+        });
 
         if (count < 2)
             Debug.LogWarning("Scenario has less than 2 choices. Add at least 2 choices.");
@@ -149,6 +162,7 @@ public class DialogueManager : MonoBehaviour
     public void Show(string title, string body, string[] choices, Action<int> onChoiceSelected)
     {
         EnsureUiReferences();
+        HideHintOverlay();
 
         if (dialoguePanel == null || dialogueText == null)
         {
@@ -162,14 +176,22 @@ public class DialogueManager : MonoBehaviour
 
         SetTitle(title);
 
-        List<string> pages = BuildDialoguePages(body);
-        int choiceCount = choices != null ? Mathf.Min(choices.Length, 4) : 0;
-        ShowDialoguePage(title, pages, 0, choiceCount, choices, onChoiceSelected);
+        ResetChoices();
+
+        int count = choices != null ? Mathf.Min(choices.Length, 4) : 0;
+        BeginDialogueBody(title, body, () =>
+        {
+            if (count >= 1) SetupChoiceButton(choiceAButton, choices[0], 0, onChoiceSelected);
+            if (count >= 2) SetupChoiceButton(choiceBButton, choices[1], 1, onChoiceSelected);
+            if (count >= 3) SetupChoiceButton(choiceCButton, choices[2], 2, onChoiceSelected);
+            if (count >= 4) SetupChoiceButton(choiceDButton, choices[3], 3, onChoiceSelected);
+        });
     }
 
     public void ShowAutoAdvance(string title, string body, Action onBodyComplete)
     {
         EnsureUiReferences();
+        HideHintOverlay();
 
         if (dialoguePanel == null || dialogueText == null)
         {
@@ -191,6 +213,41 @@ public class DialogueManager : MonoBehaviour
             dialoguePanel.SetActive(false);
     }
 
+    public void ShowHintOverlay(string title, string body, Action onContinue)
+    {
+        EnsureUiReferences();
+        EnsureHintOverlay();
+
+        if (hintOverlayPanel == null || hintBodyText == null || hintContinueButton == null)
+        {
+            Debug.LogError("ShowHintOverlay: hint overlay UI is not available.");
+            return;
+        }
+
+        HideDialoguePanel();
+
+        if (hintTitleText != null)
+            hintTitleText.text = string.IsNullOrWhiteSpace(title) ? "Mike" : title.Trim();
+
+        hintBodyText.text = body ?? string.Empty;
+
+        if (hintPortraitImage != null)
+        {
+            hintPortraitImage.sprite = ResolveMikeHintPortrait();
+            hintPortraitImage.enabled = hintPortraitImage.sprite != null;
+        }
+
+        hintContinueButton.onClick.RemoveAllListeners();
+        hintContinueButton.onClick.AddListener(() => onContinue?.Invoke());
+        hintOverlayPanel.SetActive(true);
+    }
+
+    public void HideHintOverlay()
+    {
+        if (hintOverlayPanel != null)
+            hintOverlayPanel.SetActive(false);
+    }
+
     private void SetupChoiceButton(Button btn, string label, int index, Action<int> onChoiceSelected)
     {
         if (btn == null)
@@ -208,26 +265,6 @@ public class DialogueManager : MonoBehaviour
             onChoiceSelected?.Invoke(index);
         });
     }
-
-    private void ShowDialoguePage(string title, List<string> pages, int pageIndex, int choiceCount, string[] choices, Action<int> onChoiceSelected)
-    {
-        ResetChoices();
-
-        bool hasMorePages = pageIndex < pages.Count - 1;
-        if (hasMorePages)
-        {
-            SetupChoiceButton(choiceAButton, "Continue", 0, _ => ShowDialoguePage(title, pages, pageIndex + 1, choiceCount, choices, onChoiceSelected));
-        }
-        else
-        {
-            if (choiceCount >= 1) SetupChoiceButton(choiceAButton, choices[0], 0, onChoiceSelected);
-            if (choiceCount >= 2) SetupChoiceButton(choiceBButton, choices[1], 1, onChoiceSelected);
-            if (choiceCount >= 3) SetupChoiceButton(choiceCButton, choices[2], 2, onChoiceSelected);
-            if (choiceCount >= 4) SetupChoiceButton(choiceDButton, choices[3], 3, onChoiceSelected);
-        }
-
-        BeginDialogueBody(title, pages[pageIndex], null);
-    }
     public void ShowDialogue(string text, string choiceAText, string choiceBText,
     System.Action onChoiceA, System.Action onChoiceB)
 {
@@ -240,34 +277,35 @@ public class DialogueManager : MonoBehaviour
 
     ResetChoices();
 
-    SetButtonActive(choiceAButton, true);
-    SetButtonActive(choiceBButton, true);
-    SetButtonActive(choiceCButton, false);
-    SetButtonActive(choiceDButton, false);
-
-    TMP_Text choiceALabel = GetButtonLabel(choiceAButton);
-    if (choiceALabel != null)
-        choiceALabel.text = choiceAText;
-
-    TMP_Text choiceBLabel = GetButtonLabel(choiceBButton);
-    if (choiceBLabel != null)
-        choiceBLabel.text = choiceBText;
-
-    choiceAButton.onClick.AddListener(() =>
+    BeginDialogueBody(string.Empty, text, () =>
     {
-        dialoguePanel.SetActive(false);
-        PlayerMovement.RemoveMovementLock("Dialogue");
-        onChoiceA?.Invoke();
-    });
+        SetButtonActive(choiceAButton, true);
+        SetButtonActive(choiceBButton, true);
+        SetButtonActive(choiceCButton, false);
+        SetButtonActive(choiceDButton, false);
 
-    choiceBButton.onClick.AddListener(() =>
-    {
-        dialoguePanel.SetActive(false);
-        PlayerMovement.RemoveMovementLock("Dialogue");
-        onChoiceB?.Invoke();
-    });
+        TMP_Text choiceALabel = GetButtonLabel(choiceAButton);
+        if (choiceALabel != null)
+            choiceALabel.text = choiceAText;
 
-    BeginDialogueBody(string.Empty, text, null);
+        TMP_Text choiceBLabel = GetButtonLabel(choiceBButton);
+        if (choiceBLabel != null)
+            choiceBLabel.text = choiceBText;
+
+        choiceAButton.onClick.AddListener(() =>
+        {
+            dialoguePanel.SetActive(false);
+            PlayerMovement.RemoveMovementLock("Dialogue");
+            onChoiceA?.Invoke();
+        });
+
+        choiceBButton.onClick.AddListener(() =>
+        {
+            dialoguePanel.SetActive(false);
+            PlayerMovement.RemoveMovementLock("Dialogue");
+            onChoiceB?.Invoke();
+        });
+    });
 }
 
     private void ResetChoices()
@@ -320,30 +358,6 @@ public class DialogueManager : MonoBehaviour
             return title.Trim() + "\n\n" + safeBody;
 
         return safeBody;
-    }
-
-    private static List<string> BuildDialoguePages(string body)
-    {
-        List<string> pages = new List<string>();
-        string safeBody = body ?? string.Empty;
-        string[] paragraphs = safeBody.Split(new[] { "\n\n" }, StringSplitOptions.None);
-
-        if (paragraphs.Length == 0)
-        {
-            pages.Add(string.Empty);
-            return pages;
-        }
-
-        for (int index = 0; index < paragraphs.Length; index += MaxParagraphsPerPage)
-        {
-            int count = Mathf.Min(MaxParagraphsPerPage, paragraphs.Length - index);
-            pages.Add(string.Join("\n\n", paragraphs, index, count));
-        }
-
-        if (pages.Count == 0)
-            pages.Add(safeBody);
-
-        return pages;
     }
 
     private IEnumerator TypeDialogueBody(string fullText, Action onComplete)
@@ -416,6 +430,151 @@ public class DialogueManager : MonoBehaviour
         RectTransform panelRect = dialoguePanel.GetComponent<RectTransform>();
         if (panelRect != null && hasDefaultPanelPosition)
             panelRect.anchoredPosition = defaultPanelAnchoredPosition;
+    }
+
+    private void EnsureHintOverlay()
+    {
+        if (hintOverlayPanel != null)
+            return;
+
+        Canvas canvas = FindFirstObjectByType<Canvas>(FindObjectsInactive.Include);
+        if (canvas == null)
+            return;
+
+        RectTransform parentRect = canvas.transform as RectTransform;
+        if (parentRect == null)
+            return;
+
+        hintOverlayPanel = new GameObject("MikeHintOverlay", typeof(RectTransform), typeof(Image));
+        hintOverlayPanel.transform.SetParent(parentRect, false);
+
+        RectTransform panelRect = hintOverlayPanel.GetComponent<RectTransform>();
+        panelRect.anchorMin = new Vector2(1f, 1f);
+        panelRect.anchorMax = new Vector2(1f, 1f);
+        panelRect.pivot = new Vector2(1f, 1f);
+        panelRect.anchoredPosition = new Vector2(-24f, -24f);
+        panelRect.sizeDelta = new Vector2(440f, 168f);
+
+        Image panelImage = hintOverlayPanel.GetComponent<Image>();
+        panelImage.color = new Color(0.08f, 0.12f, 0.18f, 0.94f);
+
+        GameObject portraitObject = new GameObject("MikePortrait", typeof(RectTransform), typeof(Image));
+        portraitObject.transform.SetParent(hintOverlayPanel.transform, false);
+        RectTransform portraitRect = portraitObject.GetComponent<RectTransform>();
+        portraitRect.anchorMin = new Vector2(0f, 1f);
+        portraitRect.anchorMax = new Vector2(0f, 1f);
+        portraitRect.pivot = new Vector2(0f, 1f);
+        portraitRect.anchoredPosition = new Vector2(16f, -16f);
+        portraitRect.sizeDelta = new Vector2(76f, 76f);
+
+        hintPortraitImage = portraitObject.GetComponent<Image>();
+        hintPortraitImage.preserveAspect = true;
+
+        hintTitleText = CreateHintText(
+            "HintTitleText",
+            hintOverlayPanel.transform,
+            new Vector2(112f, -16f),
+            new Vector2(312f, 28f),
+            titleText,
+            22f,
+            FontStyles.Bold,
+            TextAlignmentOptions.TopLeft);
+
+        hintBodyText = CreateHintText(
+            "HintBodyText",
+            hintOverlayPanel.transform,
+            new Vector2(112f, -48f),
+            new Vector2(300f, 88f),
+            dialogueText,
+            18f,
+            FontStyles.Normal,
+            TextAlignmentOptions.TopLeft);
+        hintBodyText.enableWordWrapping = true;
+
+        hintContinueButton = CreateHintButton("HintContinueButton", hintOverlayPanel.transform, new Vector2(-16f, 16f), new Vector2(112f, 34f));
+        hintOverlayPanel.SetActive(false);
+    }
+
+    private TMP_Text CreateHintText(string objectName, Transform parent, Vector2 anchoredPosition, Vector2 sizeDelta, TMP_Text template, float fontSize, FontStyles fontStyle, TextAlignmentOptions alignment)
+    {
+        GameObject textObject = new GameObject(objectName, typeof(RectTransform), typeof(TextMeshProUGUI));
+        textObject.transform.SetParent(parent, false);
+
+        RectTransform rectTransform = textObject.GetComponent<RectTransform>();
+        rectTransform.anchorMin = new Vector2(0f, 1f);
+        rectTransform.anchorMax = new Vector2(0f, 1f);
+        rectTransform.pivot = new Vector2(0f, 1f);
+        rectTransform.anchoredPosition = anchoredPosition;
+        rectTransform.sizeDelta = sizeDelta;
+
+        TextMeshProUGUI text = textObject.GetComponent<TextMeshProUGUI>();
+        if (template != null)
+        {
+            text.font = template.font;
+            text.fontSharedMaterial = template.fontSharedMaterial;
+            text.color = template.color;
+        }
+        else
+        {
+            text.color = Color.white;
+        }
+
+        text.fontSize = fontSize;
+        text.fontStyle = fontStyle;
+        text.alignment = alignment;
+        return text;
+    }
+
+    private Button CreateHintButton(string objectName, Transform parent, Vector2 anchoredPosition, Vector2 sizeDelta)
+    {
+        GameObject buttonObject = new GameObject(objectName, typeof(RectTransform), typeof(Image), typeof(Button));
+        buttonObject.transform.SetParent(parent, false);
+
+        RectTransform rectTransform = buttonObject.GetComponent<RectTransform>();
+        rectTransform.anchorMin = new Vector2(1f, 0f);
+        rectTransform.anchorMax = new Vector2(1f, 0f);
+        rectTransform.pivot = new Vector2(1f, 0f);
+        rectTransform.anchoredPosition = anchoredPosition;
+        rectTransform.sizeDelta = sizeDelta;
+
+        Image buttonImage = buttonObject.GetComponent<Image>();
+        buttonImage.color = new Color(0.17f, 0.32f, 0.47f, 1f);
+
+        Button button = buttonObject.GetComponent<Button>();
+        button.targetGraphic = buttonImage;
+
+        TMP_Text label = CreateHintText(
+            "Label",
+            buttonObject.transform,
+            new Vector2(0f, 0f),
+            sizeDelta,
+            GetButtonLabel(choiceAButton),
+            18f,
+            FontStyles.Bold,
+            TextAlignmentOptions.Center);
+
+        RectTransform labelRect = label.rectTransform;
+        labelRect.anchorMin = Vector2.zero;
+        labelRect.anchorMax = Vector2.one;
+        labelRect.pivot = new Vector2(0.5f, 0.5f);
+        labelRect.anchoredPosition = Vector2.zero;
+        labelRect.offsetMin = Vector2.zero;
+        labelRect.offsetMax = Vector2.zero;
+        label.text = "Continue";
+
+        return button;
+    }
+
+    private Sprite ResolveMikeHintPortrait()
+    {
+        if (mikeHintPortrait != null)
+            return mikeHintPortrait;
+
+#if UNITY_EDITOR
+        mikeHintPortrait = AssetDatabase.LoadAssetAtPath<Sprite>(MikePortraitAssetPath);
+#endif
+
+        return mikeHintPortrait;
     }
 
     private void CachePanelLayoutDefaults()
