@@ -88,7 +88,7 @@ public class LoadingScreen : MonoBehaviour
         if (!waitingForName || terminalText == null || nameSubmitted)
             return;
 
-        if (!string.IsNullOrWhiteSpace(operatorName))
+        if (skipNameEntry && !string.IsNullOrWhiteSpace(operatorName))
         {
             waitingForName = false;
             nameSubmitted = true;
@@ -182,7 +182,7 @@ public class LoadingScreen : MonoBehaviour
 
     private void BeginNameEntry()
     {
-        if (!string.IsNullOrWhiteSpace(operatorName))
+        if (skipNameEntry && !string.IsNullOrWhiteSpace(operatorName))
         {
             waitingForName = false;
             nameSubmitted = true;

@@ -39,6 +39,21 @@ public class StoryManager : MonoBehaviour
     public bool CanContinueCurrentNode => !requestInFlight && currentNode != null && currentNode.canContinue;
     public bool IsRequestInFlight => requestInFlight;
 
+    public bool IsPresentationComplete(string nodeKey)
+    {
+        if (string.IsNullOrWhiteSpace(nodeKey))
+            return true;
+
+        StoryNpcEntranceController mentorPresentation = ResolvePresentationController(nodeKey);
+        if (mentorPresentation != null && !mentorPresentation.IsPresentationComplete(nodeKey))
+            return false;
+
+        Chapter1AviSceneController aviPresentation = mentorPresentation == null
+            ? ResolveAviPresentationController(nodeKey)
+            : null;
+        return aviPresentation == null || aviPresentation.IsPresentationComplete(nodeKey);
+    }
+
     private void OnEnable()
     {
         isShuttingDown = false;

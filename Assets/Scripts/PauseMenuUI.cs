@@ -45,6 +45,7 @@ public class PauseMenu : MonoBehaviour
         GameSession.EnsureExists();
         savePanelController = PauseSavePanelController.Create(this, pauseMenuUI);
         loadPanelController = PauseLoadPanelController.Create(this, pauseMenuUI);
+        WireAuthoredButtons();
         SetPaused(false);
     }
 
@@ -539,12 +540,80 @@ public class PauseMenu : MonoBehaviour
         return null;
     }
 
-    private void EnsureEventSystem()
+    private void WireAuthoredButtons()
     {
-        if (EventSystem.current != null || FindFirstObjectByType<EventSystem>() != null)
+        WireButton("ResumeButton", Resume);
+        WireButton("MainMenuButton", GoToMainMenu);
+        WireButton("QuitButton", QuitGame);
+    }
+
+    private void WireButton(string buttonName, UnityEngine.Events.UnityAction action)
+    {
+        Button button = FindButtonByName(buttonName);
+        if (button == null)
             return;
 
-        new GameObject("EventSystem", typeof(EventSystem), typeof(StandaloneInputModule));
+        button.onClick.RemoveListener(action);
+        button.onClick.AddListener(action);
+    }
+
+    private Button FindButtonByName(string buttonName)
+    {
+        if (pauseMenuUI == null)
+            return null;
+
+        Button[] buttons = pauseMenuUI.GetComponentsInChildren<Button>(true);
+        for (int index = 0; index < buttons.Length; index++)
+        {
+            Button button = buttons[index];
+            if (button != null && string.Equals(button.name, buttonName, StringComparison.Ordinal))
+                return button;
+        }
+
+        return null;
+    }
+
+    private void EnsureEventSystem()
+    {
+        EventSystem eventSystem = EventSystem.current ?? FindFirstObjectByType<EventSystem>();
+        if (eventSystem == null)
+        {
+            eventSystem = new GameObject("EventSystem", typeof(EventSystem)).GetComponent<EventSystem>();
+        }
+
+        Type inputModuleType = ResolveInputModuleType();
+        if (inputModuleType != null && typeof(BaseInputModule).IsAssignableFrom(inputModuleType))
+        {
+            if (eventSystem.GetComponent(inputModuleType) == null)
+                eventSystem.gameObject.AddComponent(inputModuleType);
+
+            StandaloneInputModule legacyModule = eventSystem.GetComponent<StandaloneInputModule>();
+            if (legacyModule != null)
+                legacyModule.enabled = false;
+
+            return;
+        }
+
+        if (eventSystem.GetComponent<StandaloneInputModule>() == null)
+            eventSystem.gameObject.AddComponent<StandaloneInputModule>();
+    }
+
+    private static Type ResolveInputModuleType()
+    {
+        Type inputSystemType = Type.GetType("UnityEngine.InputSystem.UI.InputSystemUIInputModule, Unity.InputSystem");
+        if (inputSystemType != null)
+            return inputSystemType;
+
+        AppDomain domain = AppDomain.CurrentDomain;
+        Assembly[] assemblies = domain.GetAssemblies();
+        for (int index = 0; index < assemblies.Length; index++)
+        {
+            Type candidate = assemblies[index].GetType("UnityEngine.InputSystem.UI.InputSystemUIInputModule");
+            if (candidate != null)
+                return candidate;
+        }
+
+        return null;
     }
 
     private void SetPaused(bool paused)

@@ -132,17 +132,19 @@ public class PauseSavePanelController
         saveButton.onClick = new Button.ButtonClickedEvent();
         saveButton.onClick.AddListener(pauseMenu.OpenSavePanel);
 
-        RectTransform saveRect = saveButton.GetComponent<RectTransform>();
-        RectTransform resumeRect = templateButton.GetComponent<RectTransform>();
-        saveRect.anchoredPosition = new Vector2(resumeRect.anchoredPosition.x, -300f);
-        
-        // Use LayoutElement to constrain width while allowing proper text fitting
-        LayoutElement saveLayout = saveButton.GetComponent<LayoutElement>();
-        if (saveLayout == null)
-            saveLayout = saveButton.gameObject.AddComponent<LayoutElement>();
-        saveLayout.preferredWidth = Mathf.Max(resumeRect.rect.width, 400f);
-        
-        saveRect.SetSiblingIndex(Mathf.Max(0, pauseMenuRect.childCount - 1));
+        if (createdSaveButton)
+        {
+            RectTransform saveRect = saveButton.GetComponent<RectTransform>();
+            RectTransform resumeRect = templateButton.GetComponent<RectTransform>();
+            saveRect.anchoredPosition = new Vector2(resumeRect.anchoredPosition.x, -300f);
+
+            LayoutElement saveLayout = saveButton.GetComponent<LayoutElement>();
+            if (saveLayout == null)
+                saveLayout = saveButton.gameObject.AddComponent<LayoutElement>();
+
+            saveLayout.preferredWidth = Mathf.Max(resumeRect.rect.width, 400f);
+            saveRect.SetSiblingIndex(Mathf.Max(0, pauseMenuRect.childCount - 1));
+        }
 
         return createdSaveButton;
     }

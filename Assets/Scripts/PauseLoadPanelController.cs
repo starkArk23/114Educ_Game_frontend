@@ -100,27 +100,32 @@ public class PauseLoadPanelController
     private void CreateLoadButton(Button templateButton)
     {
         loadButton = FindButton("LoadButton");
+        bool createdLoadButton = false;
 
         if (loadButton == null)
         {
             loadButton = UnityEngine.Object.Instantiate(templateButton, templateButton.transform.parent);
             loadButton.name = "LoadButton";
+            createdLoadButton = true;
         }
 
         SetButtonLabel(loadButton, "Load Game");
         loadButton.onClick = new Button.ButtonClickedEvent();
         loadButton.onClick.AddListener(pauseMenu.OpenLoadPanel);
 
-        RectTransform loadRect = loadButton.GetComponent<RectTransform>();
-        RectTransform resumeRect = templateButton.GetComponent<RectTransform>();
-        loadRect.anchoredPosition = new Vector2(resumeRect.anchoredPosition.x, -390f);
+        if (createdLoadButton)
+        {
+            RectTransform loadRect = loadButton.GetComponent<RectTransform>();
+            RectTransform resumeRect = templateButton.GetComponent<RectTransform>();
+            loadRect.anchoredPosition = new Vector2(resumeRect.anchoredPosition.x, -390f);
 
-        LayoutElement loadLayout = loadButton.GetComponent<LayoutElement>();
-        if (loadLayout == null)
-            loadLayout = loadButton.gameObject.AddComponent<LayoutElement>();
-        loadLayout.preferredWidth = Mathf.Max(resumeRect.rect.width, 400f);
+            LayoutElement loadLayout = loadButton.GetComponent<LayoutElement>();
+            if (loadLayout == null)
+                loadLayout = loadButton.gameObject.AddComponent<LayoutElement>();
 
-        loadRect.SetSiblingIndex(Mathf.Max(0, pauseMenuRect.childCount - 1));
+            loadLayout.preferredWidth = Mathf.Max(resumeRect.rect.width, 400f);
+            loadRect.SetSiblingIndex(Mathf.Max(0, pauseMenuRect.childCount - 1));
+        }
     }
 
     private void CreatePanel(Button templateButton, TMP_Text titleTemplate)
