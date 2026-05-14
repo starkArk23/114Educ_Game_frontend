@@ -1,9 +1,14 @@
 using System;
+using System.Collections;
+using System.Collections.Generic;
 using UnityEngine;
 using TMPro;
 using UnityEngine.UI;
+using UnityEngine.EventSystems;
 public class DialogueManager : MonoBehaviour
 {
+    private const int MaxParagraphsPerPage = 4;
+
     [Header("UI")]
     public GameObject dialoguePanel;
     public TMP_Text titleText;
@@ -14,10 +19,54 @@ public class DialogueManager : MonoBehaviour
     public Button choiceDButton;
     public ChoiceLogUI choiceLogUI;
 
+    [Header("Typing")]
+    [SerializeField] private float dialogueTypeSpeed = 0.02f;
+    [SerializeField] private float punctuationPause = 0.04f;
+    [SerializeField] private float linePause = 0.12f;
+
+    private Vector2 defaultPanelAnchoredPosition;
+    private bool hasDefaultPanelPosition;
+    private Coroutine dialogueTypingCoroutine;
+    private string activeDialogueFullText = string.Empty;
+    private Action activeDialogueComplete;
+
+    public bool HasUsableUi
+    {
+        get
+        {
+            EnsureUiReferences();
+            return dialoguePanel != null && dialogueText != null;
+        }
+    }
+
+    private void Awake()
+    {
+        EnsureEventSystem();
+        EnsureUiReferences();
+    }
+
     private void Start()
     {
+        EnsureEventSystem();
+        EnsureUiReferences();
+        CachePanelLayoutDefaults();
+
         if (dialoguePanel != null)
             dialoguePanel.SetActive(false);
+    }
+
+    private void Update()
+    {
+        if (dialogueTypingCoroutine == null || dialoguePanel == null || !dialoguePanel.activeInHierarchy)
+            return;
+
+        if (Input.GetKeyDown(KeyCode.Space)
+            || Input.GetKeyDown(KeyCode.Return)
+            || Input.GetKeyDown(KeyCode.KeypadEnter)
+            || Input.GetMouseButtonDown(0))
+        {
+            CompleteDialogueBodyImmediately();
+        }
     }
 
     // ✅ This is what ScenarioTester needs
@@ -30,37 +79,20 @@ public class DialogueManager : MonoBehaviour
         }
 
         PlayerMovement.AddMovementLock("Dialogue");
-        dialoguePanel.SetActive(true);
+        PreparePanel();
 
-        // Keep your earlier panel-fix safety
-        var cg = dialoguePanel.GetComponent<CanvasGroup>();
-        if (cg != null) cg.alpha = 1f;
+        SetTitle(scenario.scenarioTitle);
 
-        var rt = dialoguePanel.GetComponent<RectTransform>();
-        if (rt != null) rt.anchoredPosition = Vector2.zero;
+        ResetChoices();
 
-        // Set dialogue
-        dialogueText.text = scenario.dialogueText;
-
-        // Clear listeners
-        ClearButton(choiceAButton);
-        ClearButton(choiceBButton);
-        ClearButton(choiceCButton);
-        ClearButton(choiceDButton);
-
-        // Hide all first
-        SetButtonActive(choiceAButton, false);
-        SetButtonActive(choiceBButton, false);
-        SetButtonActive(choiceCButton, false);
-        SetButtonActive(choiceDButton, false);
-
-        // Show buttons depending on how many choices exist (2–4 recommended)
         int count = scenario.choices != null ? scenario.choices.Count : 0;
 
         if (count >= 1) SetupChoiceButton(choiceAButton, scenario.choices[0]);
         if (count >= 2) SetupChoiceButton(choiceBButton, scenario.choices[1]);
         if (count >= 3) SetupChoiceButton(choiceCButton, scenario.choices[2]);
         if (count >= 4) SetupChoiceButton(choiceDButton, scenario.choices[3]);
+
+        BeginDialogueBody(scenario.scenarioTitle, scenario.dialogueText, null);
 
         if (count < 2)
             Debug.LogWarning("Scenario has less than 2 choices. Add at least 2 choices.");
@@ -75,7 +107,7 @@ public class DialogueManager : MonoBehaviour
         SetButtonActive(btn, true);
 
         // Set label text
-        var tmp = btn.GetComponentInChildren<TMP_Text>();
+        var tmp = GetButtonLabel(btn);
         if (tmp != null) tmp.text = choice.choiceText;
 
         btn.onClick.AddListener(() =>
@@ -116,43 +148,47 @@ public class DialogueManager : MonoBehaviour
     }
     public void Show(string title, string body, string[] choices, Action<int> onChoiceSelected)
     {
+        EnsureUiReferences();
+
         if (dialoguePanel == null || dialogueText == null)
         {
             Debug.LogError("Show: dialoguePanel or dialogueText is NULL");
             return;
         }
 
-        dialoguePanel.SetActive(true);
+        EnsureEventSystem();
 
-        var cg = dialoguePanel.GetComponent<CanvasGroup>();
-        if (cg != null) cg.alpha = 1f;
+        PreparePanel();
 
-        var rt = dialoguePanel.GetComponent<RectTransform>();
-        if (rt != null) rt.anchoredPosition = Vector2.zero;
+        SetTitle(title);
 
-        if (titleText != null)
-            titleText.text = title;
+        List<string> pages = BuildDialoguePages(body);
+        int choiceCount = choices != null ? Mathf.Min(choices.Length, 4) : 0;
+        ShowDialoguePage(title, pages, 0, choiceCount, choices, onChoiceSelected);
+    }
 
-        if (titleText == null && !string.IsNullOrEmpty(title))
-            dialogueText.text = title + "\n\n" + body;
-        else
-            dialogueText.text = body;
+    public void ShowAutoAdvance(string title, string body, Action onBodyComplete)
+    {
+        EnsureUiReferences();
 
-        ClearButton(choiceAButton);
-        ClearButton(choiceBButton);
-        ClearButton(choiceCButton);
-        ClearButton(choiceDButton);
+        if (dialoguePanel == null || dialogueText == null)
+        {
+            Debug.LogError("ShowAutoAdvance: dialoguePanel or dialogueText is NULL");
+            return;
+        }
 
-        SetButtonActive(choiceAButton, false);
-        SetButtonActive(choiceBButton, false);
-        SetButtonActive(choiceCButton, false);
-        SetButtonActive(choiceDButton, false);
+        EnsureEventSystem();
 
-        int count = choices != null ? Mathf.Min(choices.Length, 4) : 0;
-        if (count >= 1) SetupChoiceButton(choiceAButton, choices[0], 0, onChoiceSelected);
-        if (count >= 2) SetupChoiceButton(choiceBButton, choices[1], 1, onChoiceSelected);
-        if (count >= 3) SetupChoiceButton(choiceCButton, choices[2], 2, onChoiceSelected);
-        if (count >= 4) SetupChoiceButton(choiceDButton, choices[3], 3, onChoiceSelected);
+        PreparePanel();
+        SetTitle(title);
+        ResetChoices();
+        BeginDialogueBody(title, body, onBodyComplete);
+    }
+
+    public void HideDialoguePanel()
+    {
+        if (dialoguePanel != null)
+            dialoguePanel.SetActive(false);
     }
 
     private void SetupChoiceButton(Button btn, string label, int index, Action<int> onChoiceSelected)
@@ -162,7 +198,7 @@ public class DialogueManager : MonoBehaviour
 
         SetButtonActive(btn, true);
 
-        var tmp = btn.GetComponentInChildren<TMP_Text>();
+        var tmp = GetButtonLabel(btn);
         if (tmp != null)
             tmp.text = label;
 
@@ -172,32 +208,50 @@ public class DialogueManager : MonoBehaviour
             onChoiceSelected?.Invoke(index);
         });
     }
+
+    private void ShowDialoguePage(string title, List<string> pages, int pageIndex, int choiceCount, string[] choices, Action<int> onChoiceSelected)
+    {
+        ResetChoices();
+
+        bool hasMorePages = pageIndex < pages.Count - 1;
+        if (hasMorePages)
+        {
+            SetupChoiceButton(choiceAButton, "Continue", 0, _ => ShowDialoguePage(title, pages, pageIndex + 1, choiceCount, choices, onChoiceSelected));
+        }
+        else
+        {
+            if (choiceCount >= 1) SetupChoiceButton(choiceAButton, choices[0], 0, onChoiceSelected);
+            if (choiceCount >= 2) SetupChoiceButton(choiceBButton, choices[1], 1, onChoiceSelected);
+            if (choiceCount >= 3) SetupChoiceButton(choiceCButton, choices[2], 2, onChoiceSelected);
+            if (choiceCount >= 4) SetupChoiceButton(choiceDButton, choices[3], 3, onChoiceSelected);
+        }
+
+        BeginDialogueBody(title, pages[pageIndex], null);
+    }
     public void ShowDialogue(string text, string choiceAText, string choiceBText,
     System.Action onChoiceA, System.Action onChoiceB)
 {
     PlayerMovement.AddMovementLock("Dialogue");
-    dialoguePanel.SetActive(true);
+    EnsureEventSystem();
+        EnsureUiReferences();
+    PreparePanel();
 
-    var cg = dialoguePanel.GetComponent<CanvasGroup>();
-    if (cg != null) cg.alpha = 1f;
+    SetTitle(string.Empty);
 
-    var rt = dialoguePanel.GetComponent<RectTransform>();
-    if (rt != null) rt.anchoredPosition = Vector2.zero;
-
-    dialogueText.text = text;
-
-    ClearButton(choiceAButton);
-    ClearButton(choiceBButton);
-    ClearButton(choiceCButton);
-    ClearButton(choiceDButton);
+    ResetChoices();
 
     SetButtonActive(choiceAButton, true);
     SetButtonActive(choiceBButton, true);
     SetButtonActive(choiceCButton, false);
     SetButtonActive(choiceDButton, false);
 
-    choiceAButton.GetComponentInChildren<TMP_Text>().text = choiceAText;
-    choiceBButton.GetComponentInChildren<TMP_Text>().text = choiceBText;
+    TMP_Text choiceALabel = GetButtonLabel(choiceAButton);
+    if (choiceALabel != null)
+        choiceALabel.text = choiceAText;
+
+    TMP_Text choiceBLabel = GetButtonLabel(choiceBButton);
+    if (choiceBLabel != null)
+        choiceBLabel.text = choiceBText;
 
     choiceAButton.onClick.AddListener(() =>
     {
@@ -212,5 +266,273 @@ public class DialogueManager : MonoBehaviour
         PlayerMovement.RemoveMovementLock("Dialogue");
         onChoiceB?.Invoke();
     });
+
+    BeginDialogueBody(string.Empty, text, null);
 }
+
+    private void ResetChoices()
+    {
+        ClearButton(choiceAButton);
+        ClearButton(choiceBButton);
+        ClearButton(choiceCButton);
+        ClearButton(choiceDButton);
+
+        SetButtonActive(choiceAButton, false);
+        SetButtonActive(choiceBButton, false);
+        SetButtonActive(choiceCButton, false);
+        SetButtonActive(choiceDButton, false);
+    }
+
+    private void BeginDialogueBody(string title, string body, Action onComplete)
+    {
+        EnsureUiReferences();
+
+        if (dialogueText == null)
+        {
+            onComplete?.Invoke();
+            return;
+        }
+
+        if (dialogueTypingCoroutine != null)
+        {
+            StopCoroutine(dialogueTypingCoroutine);
+            dialogueTypingCoroutine = null;
+        }
+
+        string fullText = ComposeBodyText(title, body);
+        activeDialogueFullText = fullText;
+        activeDialogueComplete = onComplete;
+
+        if (dialogueTypeSpeed <= 0f)
+        {
+            dialogueText.text = fullText;
+            FinalizeDialogueBody();
+            return;
+        }
+
+        dialogueTypingCoroutine = StartCoroutine(TypeDialogueBody(fullText, onComplete));
+    }
+
+    private string ComposeBodyText(string title, string body)
+    {
+        string safeBody = body ?? string.Empty;
+        if (titleText == null && !string.IsNullOrWhiteSpace(title))
+            return title.Trim() + "\n\n" + safeBody;
+
+        return safeBody;
+    }
+
+    private static List<string> BuildDialoguePages(string body)
+    {
+        List<string> pages = new List<string>();
+        string safeBody = body ?? string.Empty;
+        string[] paragraphs = safeBody.Split(new[] { "\n\n" }, StringSplitOptions.None);
+
+        if (paragraphs.Length == 0)
+        {
+            pages.Add(string.Empty);
+            return pages;
+        }
+
+        for (int index = 0; index < paragraphs.Length; index += MaxParagraphsPerPage)
+        {
+            int count = Mathf.Min(MaxParagraphsPerPage, paragraphs.Length - index);
+            pages.Add(string.Join("\n\n", paragraphs, index, count));
+        }
+
+        if (pages.Count == 0)
+            pages.Add(safeBody);
+
+        return pages;
+    }
+
+    private IEnumerator TypeDialogueBody(string fullText, Action onComplete)
+    {
+        dialogueText.text = string.Empty;
+
+        for (int index = 0; index < fullText.Length; index++)
+        {
+            char nextCharacter = fullText[index];
+            dialogueText.text = fullText.Substring(0, index + 1);
+
+            if (nextCharacter == '\n')
+            {
+                yield return new WaitForSecondsRealtime(linePause);
+                continue;
+            }
+
+            float delay = dialogueTypeSpeed;
+            if (nextCharacter == '.' || nextCharacter == ',' || nextCharacter == '!' || nextCharacter == '?' || nextCharacter == ':' || nextCharacter == ';')
+                delay += punctuationPause;
+
+            yield return new WaitForSecondsRealtime(delay);
+        }
+
+        FinalizeDialogueBody();
+    }
+
+    private void CompleteDialogueBodyImmediately()
+    {
+        if (dialogueText == null)
+        {
+            FinalizeDialogueBody();
+            return;
+        }
+
+        if (dialogueTypingCoroutine != null)
+        {
+            StopCoroutine(dialogueTypingCoroutine);
+            dialogueTypingCoroutine = null;
+        }
+
+        dialogueText.text = activeDialogueFullText ?? string.Empty;
+        FinalizeDialogueBody();
+    }
+
+    private void FinalizeDialogueBody()
+    {
+        dialogueTypingCoroutine = null;
+
+        Action onComplete = activeDialogueComplete;
+        activeDialogueComplete = null;
+        activeDialogueFullText = string.Empty;
+        onComplete?.Invoke();
+    }
+
+    private void PreparePanel()
+    {
+        EnsureUiReferences();
+
+        if (dialoguePanel == null)
+            return;
+
+        CachePanelLayoutDefaults();
+        dialoguePanel.SetActive(true);
+
+        CanvasGroup canvasGroup = dialoguePanel.GetComponent<CanvasGroup>();
+        if (canvasGroup != null)
+            canvasGroup.alpha = 1f;
+
+        RectTransform panelRect = dialoguePanel.GetComponent<RectTransform>();
+        if (panelRect != null && hasDefaultPanelPosition)
+            panelRect.anchoredPosition = defaultPanelAnchoredPosition;
+    }
+
+    private void CachePanelLayoutDefaults()
+    {
+        EnsureUiReferences();
+
+        if (hasDefaultPanelPosition || dialoguePanel == null)
+            return;
+
+        RectTransform panelRect = dialoguePanel.GetComponent<RectTransform>();
+        if (panelRect == null)
+            return;
+
+        defaultPanelAnchoredPosition = panelRect.anchoredPosition;
+        hasDefaultPanelPosition = true;
+    }
+
+    private void SetTitle(string title)
+    {
+        if (titleText == null)
+            return;
+
+        titleText.text = string.IsNullOrWhiteSpace(title) ? "SECURE CHANNEL" : title.Trim();
+    }
+
+    private TMP_Text GetButtonLabel(Button btn)
+    {
+        return btn == null ? null : btn.GetComponentInChildren<TMP_Text>(true);
+    }
+
+    private void EnsureUiReferences()
+    {
+        if (dialoguePanel == null)
+        {
+            GameObject panel = FindNamedChild("DialoguePanel");
+            if (panel != null)
+                dialoguePanel = panel;
+        }
+
+        if (titleText == null)
+            titleText = FindComponentByName<TMP_Text>("TitleText");
+
+        if (dialogueText == null)
+            dialogueText = FindComponentByName<TMP_Text>("DialogueText");
+
+        if (choiceAButton == null)
+            choiceAButton = FindComponentByName<Button>("ChoiceA");
+
+        if (choiceBButton == null)
+            choiceBButton = FindComponentByName<Button>("ChoiceB");
+
+        if (choiceCButton == null)
+            choiceCButton = FindComponentByName<Button>("ChoiceC");
+
+        if (choiceDButton == null)
+            choiceDButton = FindComponentByName<Button>("ChoiceD");
+
+        if (choiceLogUI == null)
+            choiceLogUI = FindFirstObjectByType<ChoiceLogUI>(FindObjectsInactive.Include);
+    }
+
+    private static GameObject FindNamedChild(string objectName)
+    {
+        GameObject direct = GameObject.Find(objectName);
+        if (direct != null)
+            return direct;
+
+        Transform[] transforms = FindObjectsByType<Transform>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+        for (int index = 0; index < transforms.Length; index++)
+        {
+            Transform candidate = transforms[index];
+            if (candidate != null && string.Equals(candidate.name, objectName, StringComparison.Ordinal))
+                return candidate.gameObject;
+        }
+
+        return null;
+    }
+
+    private static T FindComponentByName<T>(string objectName) where T : Component
+    {
+        GameObject target = FindNamedChild(objectName);
+        return target != null ? target.GetComponent<T>() : null;
+    }
+
+    private static void EnsureEventSystem()
+    {
+        if (FindFirstObjectByType<EventSystem>() != null)
+            return;
+
+        GameObject root = new GameObject("EventSystem");
+        root.AddComponent<EventSystem>();
+
+        Type inputModuleType = ResolveInputModuleType();
+        if (inputModuleType != null && typeof(BaseInputModule).IsAssignableFrom(inputModuleType))
+        {
+            root.AddComponent(inputModuleType);
+            return;
+        }
+
+        root.AddComponent<StandaloneInputModule>();
+    }
+
+    private static Type ResolveInputModuleType()
+    {
+        Type inputSystemType = Type.GetType("UnityEngine.InputSystem.UI.InputSystemUIInputModule, Unity.InputSystem");
+        if (inputSystemType != null)
+            return inputSystemType;
+
+        AppDomain domain = AppDomain.CurrentDomain;
+        var assemblies = domain.GetAssemblies();
+        for (int index = 0; index < assemblies.Length; index++)
+        {
+            Type candidate = assemblies[index].GetType("UnityEngine.InputSystem.UI.InputSystemUIInputModule");
+            if (candidate != null)
+                return candidate;
+        }
+
+        return null;
+    }
 }

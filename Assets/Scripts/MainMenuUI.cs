@@ -7,7 +7,7 @@ using System.Collections.Generic;
 public class MainMenuUI : MonoBehaviour
 {
     [SerializeField] private string loadingSceneName = "LoadingScene";
-    [SerializeField] private string gameSceneName = "GameScene";
+    [SerializeField] private string gameSceneName = "RoomScene";
     [SerializeField] private TMP_InputField operatorNameInput;
 
     private readonly List<GameSession.SaveSlotInfo> cachedSaveSlots = new List<GameSession.SaveSlotInfo>();
@@ -19,13 +19,17 @@ public class MainMenuUI : MonoBehaviour
     }
 
     public void Play()
-{
-    Time.timeScale = 1f;
-    PlayerMovement.RemoveMovementLock("Pause");
-    LoadingScreen.skipNameEntry = false;
-    LoadingScreen.nextSceneName = gameSceneName;
-    SceneManager.LoadScene(loadingSceneName);
-}
+    {
+        SetOperatorNameFromInput();
+        GameSession.EnsureExists();
+        GameSession.Instance.PrepareNewGame();
+
+        Time.timeScale = 1f;
+        PlayerMovement.RemoveMovementLock("Pause");
+        LoadingScreen.skipNameEntry = false;
+        LoadingScreen.nextSceneName = gameSceneName;
+        SceneManager.LoadScene(loadingSceneName);
+    }
 
     public void RefreshContinueSlots()
     {

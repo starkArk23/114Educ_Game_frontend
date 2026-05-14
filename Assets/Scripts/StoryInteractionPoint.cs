@@ -1,6 +1,6 @@
 using UnityEngine;
 
-public class StoryInteractionPoint : MonoBehaviour, IInteractable
+public class StoryInteractionPoint : MonoBehaviour, IInteractable, IInteractionPromptProvider
 {
     [SerializeField] private StoryManager storyManager;
     [SerializeField] private string interactionId;
@@ -9,6 +9,7 @@ public class StoryInteractionPoint : MonoBehaviour, IInteractable
     [SerializeField] private string title;
     [TextArea(2, 8)]
     [SerializeField] private string bodyText;
+    [SerializeField] private string promptText = "Press E to check";
 
     public void Interact()
     {
@@ -28,5 +29,11 @@ public class StoryInteractionPoint : MonoBehaviour, IInteractable
             storyManager = FindFirstObjectByType<StoryManager>();
 
         return storyManager;
+    }
+
+    public bool TryGetInteractionPrompt(out string resolvedPromptText)
+    {
+        resolvedPromptText = string.IsNullOrWhiteSpace(promptText) ? "Press E to check" : promptText.Trim();
+        return true;
     }
 }

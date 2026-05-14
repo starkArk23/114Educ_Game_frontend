@@ -6,6 +6,10 @@ This repository contains the Unity frontend for the ICT 114 educational game.
 
 Open this repository root as the Unity project.
 
+## Documentation
+
+- Requirements summary: [Docs/deferred-requirements.md](Docs/deferred-requirements.md)
+
 ## Included
 
 - Assets/

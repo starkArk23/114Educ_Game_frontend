@@ -12,8 +12,17 @@ EditorBuildSettings:
     path: Assets/Scenes/LoadingScene.unity
     guid: 1f70ce09a6c34c14e8646f504897b41e
   - enabled: 1
-    path: Assets/Scenes/GameScene.unity
+    path: Assets/Scenes/City.unity
     guid: 2cda990e2423bbf4892e6590ba056729
+  - enabled: 1
+    path: Assets/Scenes/SystemCoreScene.unity
+    guid: 26779f865963bac4d8187b9125a419a2
+  - enabled: 1
+    path: Assets/Scenes/RoomScene.unity
+    guid: 6158355912cb8524294552e894cc2cff
+  - enabled: 1
+    path: Assets/Scenes/HallwayScene.unity
+    guid: e81cd33729c4b294795cfb3a11b3da2f
   m_configObjects:
     com.unity.dt.app-ui: {fileID: 11400000, guid: 1b1c20d82303e4b5781c3ef50ac1449f, type: 2}
     com.unity.input.settings.actions: {fileID: -944628639613478452, guid: 3590b91b4603b465dbb4216d601bff33, type: 3}
