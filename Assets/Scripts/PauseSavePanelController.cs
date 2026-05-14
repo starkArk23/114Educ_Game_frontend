@@ -9,7 +9,6 @@ using UnityEngine.UI;
 public class PauseSavePanelController
 {
     private const string SavePanelName = "SaveSlotPanel";
-    private const string LoadPanelName = "LoadSlotPanel";
 
     private readonly PauseMenu pauseMenu;
     private readonly GameObject pauseMenuRoot;
@@ -28,7 +27,7 @@ public class PauseSavePanelController
     private bool hasLoadedSlots;
     private bool isRefreshingSlots;
 
-    public bool IsOpen => panelRoot != null && panelRoot.activeInHierarchy;
+    public bool IsOpen => panelRoot != null && panelRoot.activeSelf;
 
     private PauseSavePanelController(PauseMenu pauseMenu, GameObject pauseMenuRoot)
     {
@@ -72,8 +71,7 @@ public class PauseSavePanelController
 
     public void SetRootActive(bool active)
     {
-        if (!active)
-            HidePanel();
+        HidePanel();
     }
 
     private void Initialize()
@@ -132,19 +130,17 @@ public class PauseSavePanelController
         saveButton.onClick = new Button.ButtonClickedEvent();
         saveButton.onClick.AddListener(pauseMenu.OpenSavePanel);
 
-        if (createdSaveButton)
-        {
-            RectTransform saveRect = saveButton.GetComponent<RectTransform>();
-            RectTransform resumeRect = templateButton.GetComponent<RectTransform>();
-            saveRect.anchoredPosition = new Vector2(resumeRect.anchoredPosition.x, -300f);
-
-            LayoutElement saveLayout = saveButton.GetComponent<LayoutElement>();
-            if (saveLayout == null)
-                saveLayout = saveButton.gameObject.AddComponent<LayoutElement>();
-
-            saveLayout.preferredWidth = Mathf.Max(resumeRect.rect.width, 400f);
-            saveRect.SetSiblingIndex(Mathf.Max(0, pauseMenuRect.childCount - 1));
-        }
+        RectTransform saveRect = saveButton.GetComponent<RectTransform>();
+        RectTransform resumeRect = templateButton.GetComponent<RectTransform>();
+        saveRect.anchoredPosition = new Vector2(resumeRect.anchoredPosition.x, -300f);
+        
+        // Use LayoutElement to constrain width while allowing proper text fitting
+        LayoutElement saveLayout = saveButton.GetComponent<LayoutElement>();
+        if (saveLayout == null)
+            saveLayout = saveButton.gameObject.AddComponent<LayoutElement>();
+        saveLayout.preferredWidth = Mathf.Max(resumeRect.rect.width, 400f);
+        
+        saveRect.SetSiblingIndex(Mathf.Max(0, pauseMenuRect.childCount - 1));
 
         return createdSaveButton;
     }
@@ -405,14 +401,9 @@ public class PauseSavePanelController
 
     private void SetMainMenuVisible(bool visible)
     {
-        for (int index = 0; index < pauseMenuRect.childCount; index++)
+        for (int index = 0; index < menuObjects.Count; index++)
         {
-            GameObject menuObject = pauseMenuRect.GetChild(index).gameObject;
-            if (menuObject == panelRoot
-                || string.Equals(menuObject.name, SavePanelName, StringComparison.Ordinal)
-                || string.Equals(menuObject.name, LoadPanelName, StringComparison.Ordinal))
-                continue;
-
+            GameObject menuObject = menuObjects[index];
             if (menuObject != null)
                 menuObject.SetActive(visible);
         }

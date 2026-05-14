@@ -1,6 +1,4 @@
 using TMPro;
-using System;
-using System.Reflection;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.SceneManagement;
@@ -22,18 +20,9 @@ public class PauseMenu : MonoBehaviour
 
     [Header("Scenes")]
     [SerializeField] private string mainMenuSceneName = "MainMenu";
-    [SerializeField] private string loadingSceneName = "LoadingScene";
-    [SerializeField] private string defaultGameSceneName = "RoomScene";
 
     private bool isPaused;
     private PauseSavePanelController savePanelController;
-    private PauseLoadPanelController loadPanelController;
-
-    private static Type keyboardType;
-    private static PropertyInfo currentKeyboardProperty;
-    private static PropertyInfo escapeKeyProperty;
-    private static PropertyInfo wasPressedThisFrameProperty;
-    private static bool inputSystemReflectionReady;
 
     private void Awake()
     {
@@ -44,8 +33,6 @@ public class PauseMenu : MonoBehaviour
     {
         GameSession.EnsureExists();
         savePanelController = PauseSavePanelController.Create(this, pauseMenuUI);
-        loadPanelController = PauseLoadPanelController.Create(this, pauseMenuUI);
-        WireAuthoredButtons();
         SetPaused(false);
     }
 
@@ -54,56 +41,16 @@ public class PauseMenu : MonoBehaviour
         if (!allowEscToggle)
             return;
 
-        if (WasEscapePressed())
+        if (Input.GetKeyDown(KeyCode.Escape))
         {
             // ESC should not close the save panel - only save/back buttons can
-            if ((savePanelController != null && savePanelController.IsOpen)
-                || (loadPanelController != null && loadPanelController.IsOpen))
+            if (savePanelController != null && savePanelController.IsOpen)
             {
                 return;
             }
 
             TogglePause();
         }
-    }
-
-    private static bool WasEscapePressed()
-    {
-        if (Input.GetKeyDown(KeyCode.Escape))
-            return true;
-
-        EnsureInputSystemReflection();
-        if (currentKeyboardProperty == null || escapeKeyProperty == null || wasPressedThisFrameProperty == null)
-            return false;
-
-        object keyboard = currentKeyboardProperty.GetValue(null, null);
-        if (keyboard == null)
-            return false;
-
-        object escapeKey = escapeKeyProperty.GetValue(keyboard, null);
-        if (escapeKey == null)
-            return false;
-
-        object rawValue = wasPressedThisFrameProperty.GetValue(escapeKey, null);
-        return rawValue is bool pressed && pressed;
-    }
-
-    private static void EnsureInputSystemReflection()
-    {
-        if (inputSystemReflectionReady)
-            return;
-
-        inputSystemReflectionReady = true;
-        keyboardType = Type.GetType("UnityEngine.InputSystem.Keyboard, Unity.InputSystem");
-        if (keyboardType == null)
-            return;
-
-        currentKeyboardProperty = keyboardType.GetProperty("current", BindingFlags.Public | BindingFlags.Static);
-        escapeKeyProperty = keyboardType.GetProperty("escapeKey", BindingFlags.Public | BindingFlags.Instance);
-
-        Type buttonControlType = Type.GetType("UnityEngine.InputSystem.Controls.ButtonControl, Unity.InputSystem");
-        if (buttonControlType != null)
-            wasPressedThisFrameProperty = buttonControlType.GetProperty("wasPressedThisFrame", BindingFlags.Public | BindingFlags.Instance);
     }
 
     public void TogglePause()
@@ -116,7 +63,6 @@ public class PauseMenu : MonoBehaviour
 
     public void Resume()
     {
-        CloseLoadPanel();
         CloseSavePanel();
         SetPaused(false);
     }
@@ -129,41 +75,12 @@ public class PauseMenu : MonoBehaviour
         if (savePanelController == null)
             savePanelController = PauseSavePanelController.Create(this, pauseMenuUI);
 
-        loadPanelController?.HidePanel();
         savePanelController?.ShowPanel();
-    }
-
-    public void OpenLoadPanel()
-    {
-        if (!isPaused)
-            SetPaused(true);
-
-        if (loadPanelController == null)
-            loadPanelController = PauseLoadPanelController.Create(this, pauseMenuUI);
-
-        savePanelController?.HidePanel();
-        loadPanelController?.ShowPanel();
     }
 
     public void CloseSavePanel()
     {
         savePanelController?.HidePanel();
-    }
-
-    public void CloseLoadPanel()
-    {
-        loadPanelController?.HidePanel();
-    }
-
-    public void BeginLoadedGameTransition(string targetScene)
-    {
-        CloseLoadPanel();
-        CloseSavePanel();
-        SetPaused(false);
-
-        LoadingScreen.skipNameEntry = true;
-        LoadingScreen.nextSceneName = string.IsNullOrWhiteSpace(targetScene) ? defaultGameSceneName : targetScene;
-        SceneManager.LoadScene(loadingSceneName);
     }
 
     public void GoToMainMenu()
@@ -540,80 +457,12 @@ public class PauseMenu : MonoBehaviour
         return null;
     }
 
-    private void WireAuthoredButtons()
-    {
-        WireButton("ResumeButton", Resume);
-        WireButton("MainMenuButton", GoToMainMenu);
-        WireButton("QuitButton", QuitGame);
-    }
-
-    private void WireButton(string buttonName, UnityEngine.Events.UnityAction action)
-    {
-        Button button = FindButtonByName(buttonName);
-        if (button == null)
-            return;
-
-        button.onClick.RemoveListener(action);
-        button.onClick.AddListener(action);
-    }
-
-    private Button FindButtonByName(string buttonName)
-    {
-        if (pauseMenuUI == null)
-            return null;
-
-        Button[] buttons = pauseMenuUI.GetComponentsInChildren<Button>(true);
-        for (int index = 0; index < buttons.Length; index++)
-        {
-            Button button = buttons[index];
-            if (button != null && string.Equals(button.name, buttonName, StringComparison.Ordinal))
-                return button;
-        }
-
-        return null;
-    }
-
     private void EnsureEventSystem()
     {
-        EventSystem eventSystem = EventSystem.current ?? FindFirstObjectByType<EventSystem>();
-        if (eventSystem == null)
-        {
-            eventSystem = new GameObject("EventSystem", typeof(EventSystem)).GetComponent<EventSystem>();
-        }
-
-        Type inputModuleType = ResolveInputModuleType();
-        if (inputModuleType != null && typeof(BaseInputModule).IsAssignableFrom(inputModuleType))
-        {
-            if (eventSystem.GetComponent(inputModuleType) == null)
-                eventSystem.gameObject.AddComponent(inputModuleType);
-
-            StandaloneInputModule legacyModule = eventSystem.GetComponent<StandaloneInputModule>();
-            if (legacyModule != null)
-                legacyModule.enabled = false;
-
+        if (EventSystem.current != null || FindFirstObjectByType<EventSystem>() != null)
             return;
-        }
 
-        if (eventSystem.GetComponent<StandaloneInputModule>() == null)
-            eventSystem.gameObject.AddComponent<StandaloneInputModule>();
-    }
-
-    private static Type ResolveInputModuleType()
-    {
-        Type inputSystemType = Type.GetType("UnityEngine.InputSystem.UI.InputSystemUIInputModule, Unity.InputSystem");
-        if (inputSystemType != null)
-            return inputSystemType;
-
-        AppDomain domain = AppDomain.CurrentDomain;
-        Assembly[] assemblies = domain.GetAssemblies();
-        for (int index = 0; index < assemblies.Length; index++)
-        {
-            Type candidate = assemblies[index].GetType("UnityEngine.InputSystem.UI.InputSystemUIInputModule");
-            if (candidate != null)
-                return candidate;
-        }
-
-        return null;
+        new GameObject("EventSystem", typeof(EventSystem), typeof(StandaloneInputModule));
     }
 
     private void SetPaused(bool paused)
@@ -621,14 +470,12 @@ public class PauseMenu : MonoBehaviour
         isPaused = paused;
 
         // Always close save panel - only opens on explicit "Save" button click
-        CloseLoadPanel();
         CloseSavePanel();
 
         if (pauseMenuUI != null)
             pauseMenuUI.SetActive(paused);
 
         savePanelController?.SetRootActive(paused);
-        loadPanelController?.SetRootActive(paused);
 
         if (dimOverlay != null)
             dimOverlay.SetActive(paused);

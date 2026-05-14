@@ -200,10 +200,8 @@ public class AutoSceneExitTrigger : MonoBehaviour
             if (string.IsNullOrWhiteSpace(nodeKey))
                 continue;
 
-            if (!string.Equals(currentNodeKey, nodeKey, StringComparison.Ordinal))
-                continue;
-
-            return manager.IsPresentationComplete(currentNodeKey);
+            if (string.Equals(currentNodeKey, nodeKey, StringComparison.Ordinal))
+                return true;
         }
 
         return false;

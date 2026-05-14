@@ -2,7 +2,6 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Globalization;
-using System.IO;
 using System.Text;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
@@ -145,19 +144,9 @@ public class GameSession : MonoBehaviour
     }
 
     private const string DefaultApiBaseUrl = "http://localhost:4000/api";
-    private const string BackgroundMusicFolderRelativePath = "MUSIC/BG MUSIC";
     public const int CyberStatusStep = 5;
     public const int MaxCyberStatus = 100;
     public const int MinCyberStatus = 0;
-
-    private static readonly Dictionary<string, string> SceneBackgroundMusicFiles = new Dictionary<string, string>(StringComparer.Ordinal)
-    {
-        { "MainMenu", "(MAIN MENU MUSIC) New Game Minus - RoccoW.mp3" },
-        { "RoomScene", "(LAB MUSIC) William Rosati - Floating Also.mp3" },
-        { "HallwayScene", "(LAB MUSIC) William Rosati - Floating Also.mp3" },
-        { "SystemCoreScene", "(THREAT MUSIC) Joshua McLean - Mountain Trials.mp3" },
-        { "City", "(CITY MUSIC) Quincas Moreira - Robot City.mp3" }
-    };
 
     private static GameSession instance;
 
@@ -172,10 +161,6 @@ public class GameSession : MonoBehaviour
     private PendingRestoreState pendingRestore;
     private bool forceFreshSaveSlot;
     private SecurityReportDetail latestSecurityReport;
-    private AudioSource backgroundMusicSource;
-    private Coroutine backgroundMusicRoutine;
-    private string activeBackgroundMusicScene = string.Empty;
-    private string activeBackgroundMusicFile = string.Empty;
 
     public static GameSession Instance
     {
@@ -212,19 +197,11 @@ public class GameSession : MonoBehaviour
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
     private static void Bootstrap()
     {
-        ConfigureRuntimeExecution();
         EnsureExists();
-    }
-
-    private static void ConfigureRuntimeExecution()
-    {
-        Application.runInBackground = true;
     }
 
     public static void EnsureExists()
     {
-        ConfigureRuntimeExecution();
-
         if (instance != null)
             return;
 
@@ -251,14 +228,11 @@ public class GameSession : MonoBehaviour
 
         instance = this;
         DontDestroyOnLoad(gameObject);
-        ConfigureRuntimeExecution();
         SyncOperatorNameFromLoadingScreen();
-        EnsureBackgroundMusicSource();
     }
 
     private void OnEnable()
     {
-        ConfigureRuntimeExecution();
         SceneManager.sceneLoaded += OnSceneLoaded;
     }
 
@@ -269,196 +243,8 @@ public class GameSession : MonoBehaviour
 
     private void OnSceneLoaded(Scene scene, LoadSceneMode _mode)
     {
-        ConfigureRuntimeExecution();
         SyncOperatorNameFromLoadingScreen();
-        UpdateBackgroundMusic(scene.name);
         ApplyPendingRestore(scene);
-    }
-
-    private void EnsureBackgroundMusicSource()
-    {
-        if (backgroundMusicSource != null)
-            return;
-
-        backgroundMusicSource = GetComponent<AudioSource>();
-        if (backgroundMusicSource == null)
-            backgroundMusicSource = gameObject.AddComponent<AudioSource>();
-
-        backgroundMusicSource.playOnAwake = false;
-        backgroundMusicSource.loop = true;
-        backgroundMusicSource.spatialBlend = 0f;
-        backgroundMusicSource.ignoreListenerPause = true;
-        backgroundMusicSource.ignoreListenerVolume = false;
-        backgroundMusicSource.volume = 0.6f;
-    }
-
-    private void UpdateBackgroundMusic(string sceneName)
-    {
-        EnsureBackgroundMusicSource();
-
-        if (!TryResolveBackgroundMusicFile(sceneName, out string musicFileName))
-        {
-            StopBackgroundMusic();
-            return;
-        }
-
-        if (string.Equals(activeBackgroundMusicScene, sceneName, StringComparison.Ordinal)
-            && string.Equals(activeBackgroundMusicFile, musicFileName, StringComparison.Ordinal)
-            && backgroundMusicSource.clip != null)
-        {
-            if (!backgroundMusicSource.isPlaying)
-                backgroundMusicSource.Play();
-
-            return;
-        }
-
-        activeBackgroundMusicScene = sceneName ?? string.Empty;
-        activeBackgroundMusicFile = musicFileName;
-
-        if (backgroundMusicRoutine != null)
-            StopCoroutine(backgroundMusicRoutine);
-
-        backgroundMusicRoutine = StartCoroutine(LoadAndPlayBackgroundMusic(musicFileName, sceneName));
-    }
-
-    private bool TryResolveBackgroundMusicFile(string sceneName, out string musicFileName)
-    {
-        musicFileName = null;
-        if (string.IsNullOrWhiteSpace(sceneName))
-            return false;
-
-        if (string.Equals(sceneName.Trim(), "LoadingScene", StringComparison.Ordinal))
-            return false;
-
-        if (SceneBackgroundMusicFiles.TryGetValue(sceneName.Trim(), out musicFileName))
-            return !string.IsNullOrWhiteSpace(musicFileName);
-
-        string normalizedSceneName = sceneName.Trim();
-        if (normalizedSceneName.IndexOf("Credit", StringComparison.OrdinalIgnoreCase) >= 0)
-        {
-            musicFileName = "(CREDITS MUSIC) Dennennaalden - RoccoW.mp3";
-            return true;
-        }
-
-        if (normalizedSceneName.IndexOf("Ending", StringComparison.OrdinalIgnoreCase) >= 0)
-        {
-            musicFileName = "(ENDING MUSIC) Good Old Times - HolFix.mp3";
-            return true;
-        }
-
-        if (normalizedSceneName.IndexOf("GameOver", StringComparison.OrdinalIgnoreCase) >= 0
-            || normalizedSceneName.IndexOf("Game Over", StringComparison.OrdinalIgnoreCase) >= 0)
-        {
-            musicFileName = "(GAME OVER MUSIC) Poisonous Bite - Pix.mp3";
-            return true;
-        }
-
-        if (normalizedSceneName.IndexOf("Alley", StringComparison.OrdinalIgnoreCase) >= 0)
-        {
-            musicFileName = "(ALLEY MUSIC) Kevin MacLeod - 8bit Dungeon Level.mp3";
-            return true;
-        }
-
-            if (normalizedSceneName.IndexOf("Lab", StringComparison.OrdinalIgnoreCase) >= 0
-            || normalizedSceneName.IndexOf("Hallway", StringComparison.OrdinalIgnoreCase) >= 0)
-        {
-            musicFileName = "(LAB MUSIC) William Rosati - Floating Also.mp3";
-            return true;
-        }
-
-        if (normalizedSceneName.IndexOf("Threat", StringComparison.OrdinalIgnoreCase) >= 0
-            || normalizedSceneName.IndexOf("Core", StringComparison.OrdinalIgnoreCase) >= 0)
-        {
-            musicFileName = "(THREAT MUSIC) Joshua McLean - Mountain Trials.mp3";
-            return true;
-        }
-
-        if (normalizedSceneName.IndexOf("City", StringComparison.OrdinalIgnoreCase) >= 0)
-        {
-            musicFileName = "(CITY MUSIC) Quincas Moreira - Robot City.mp3";
-            return true;
-        }
-
-            if (normalizedSceneName.IndexOf("Menu", StringComparison.OrdinalIgnoreCase) >= 0
-            || normalizedSceneName.IndexOf("Loading", StringComparison.OrdinalIgnoreCase) >= 0)
-        {
-            musicFileName = "(MAIN MENU MUSIC) New Game Minus - RoccoW.mp3";
-            return true;
-        }
-
-        return false;
-    }
-
-    private IEnumerator LoadAndPlayBackgroundMusic(string musicFileName, string sceneName)
-    {
-        string audioFilePath = Path.Combine(Application.dataPath, BackgroundMusicFolderRelativePath, musicFileName);
-        if (!File.Exists(audioFilePath))
-        {
-            Debug.LogWarning($"[GameSession] Background music file was not found for scene '{sceneName}': {audioFilePath}");
-            StopBackgroundMusic();
-            backgroundMusicRoutine = null;
-            yield break;
-        }
-
-        string fileUri = new Uri(audioFilePath).AbsoluteUri;
-        using UnityWebRequest request = UnityWebRequestMultimedia.GetAudioClip(fileUri, AudioType.MPEG);
-        yield return request.SendWebRequest();
-
-        if (request.result != UnityWebRequest.Result.Success)
-        {
-            Debug.LogWarning($"[GameSession] Failed to load background music for scene '{sceneName}': {request.error}");
-            StopBackgroundMusic();
-            backgroundMusicRoutine = null;
-            yield break;
-        }
-
-        AudioClip clip = DownloadHandlerAudioClip.GetContent(request);
-        if (clip == null)
-        {
-            Debug.LogWarning($"[GameSession] Loaded background music was empty for scene '{sceneName}'.");
-            StopBackgroundMusic();
-            backgroundMusicRoutine = null;
-            yield break;
-        }
-
-        clip.name = Path.GetFileNameWithoutExtension(musicFileName);
-        ReleaseBackgroundMusicClip();
-        backgroundMusicSource.clip = clip;
-        backgroundMusicSource.Play();
-        backgroundMusicRoutine = null;
-    }
-
-    private void StopBackgroundMusic()
-    {
-        activeBackgroundMusicScene = string.Empty;
-        activeBackgroundMusicFile = string.Empty;
-
-        if (backgroundMusicSource == null)
-            return;
-
-        if (backgroundMusicSource.isPlaying)
-            backgroundMusicSource.Stop();
-
-        ReleaseBackgroundMusicClip();
-        backgroundMusicSource.clip = null;
-    }
-
-    private void ReleaseBackgroundMusicClip()
-    {
-        if (backgroundMusicSource == null)
-            return;
-
-        AudioClip clip = backgroundMusicSource.clip;
-        if (clip == null)
-            return;
-
-        backgroundMusicSource.clip = null;
-        Destroy(clip);
-    }
-
-    private void Update()
-    {
-        ConfigureRuntimeExecution();
     }
 
     private bool UpdateCurrentStats(int cyberStatus, int trustTokens, string source, string reason)
