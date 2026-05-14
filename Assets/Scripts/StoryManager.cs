@@ -7,13 +7,12 @@ using UnityEngine.SceneManagement;
 public class StoryManager : MonoBehaviour
 {
     private const string MovementLockId = "StoryDialogue";
+    private const string MikeHintChoiceId = "ask_mike";
     private const string WakeTransitionNodeKey = "opening.wake";
     private const string HallwaySceneName = "HallwayScene";
     private const string HallwayArrivalSpawnPointId = "FromRoomScene";
     private const string HallwayArrivalNodeKey = "chapter1.avi_intro";
-    private const string SystemCoreSceneName = "SystemCoreScene";
-    private const string SystemCoreArrivalSpawnPointId = "FromHallway";
-    private const string SystemCoreArrivalNodeKey = "chapter1.anchor_intro";
+    private const float RequestStallTimeoutSeconds = 3f;
 
     [SerializeField] private DialogueManager dialogueManager;
     [SerializeField] private ChoiceLogUI choiceLogUI;
@@ -28,21 +27,38 @@ public class StoryManager : MonoBehaviour
     private GameSession.StoryNodeDetail currentNode;
     private List<GameSession.StoryChoiceDetail> currentChoices = new List<GameSession.StoryChoiceDetail>();
     private bool requestInFlight;
+    private bool pendingMikeHintPresentation;
     private Coroutine presentationRoutine;
+    private float requestStartedAt;
+    private bool recoveryRequestInFlight;
+
+    private bool isShuttingDown;
 
     public string CurrentNodeKey => currentNode?.nodeKey ?? string.Empty;
     public string CurrentChapterKey => currentNode?.chapterKey ?? string.Empty;
     public bool CanContinueCurrentNode => !requestInFlight && currentNode != null && currentNode.canContinue;
     public bool IsRequestInFlight => requestInFlight;
 
+    public bool IsPresentationComplete(string nodeKey)
+    {
+        if (string.IsNullOrWhiteSpace(nodeKey))
+            return true;
+
+        StoryNpcEntranceController mentorPresentation = ResolvePresentationController(nodeKey);
+        if (mentorPresentation != null && !mentorPresentation.IsPresentationComplete(nodeKey))
+            return false;
+
+        Chapter1AviSceneController aviPresentation = mentorPresentation == null
+            ? ResolveAviPresentationController(nodeKey)
+            : null;
+        return aviPresentation == null || aviPresentation.IsPresentationComplete(nodeKey);
+    }
+
     private void OnEnable()
     {
+        isShuttingDown = false;
+
         if (!autoStartOnEnable)
-            return;
-
-        EnsureSceneSetupComponents();
-
-        if (TryHandleSystemCoreArrivalStart())
             return;
 
         if (string.IsNullOrWhiteSpace(startNodeKey))
@@ -57,6 +73,17 @@ public class StoryManager : MonoBehaviour
         StartStory();
     }
 
+    private void OnDisable()
+    {
+        isShuttingDown = true;
+
+        if (presentationRoutine != null)
+        {
+            StopCoroutine(presentationRoutine);
+            presentationRoutine = null;
+        }
+    }
+
     private void Start()
     {
         if (!autoStartOnEnable || !string.IsNullOrWhiteSpace(startNodeKey) || !IsHallwayScene())
@@ -68,12 +95,24 @@ public class StoryManager : MonoBehaviour
         ResumeCurrentStory();
     }
 
+    private void Update()
+    {
+        if (requestInFlight && !recoveryRequestInFlight)
+            RecoverStalledRequestIfNeeded();
+
+        if (!Input.GetKeyDown(KeyCode.H))
+            return;
+
+        TryTriggerMikeHint();
+    }
+
     public void StartStory()
     {
         if (requestInFlight)
             return;
 
         GameSession session = GameSession.Instance;
+        MarkRequestStarted();
         StartCoroutine(session.GetCurrentStoryNode(startNodeKey, HandleNodeResponse));
     }
 
@@ -82,6 +121,7 @@ public class StoryManager : MonoBehaviour
         if (requestInFlight)
             return;
 
+        MarkRequestStarted();
         StartCoroutine(GameSession.Instance.GetCurrentStoryNode(null, HandleNodeResponse));
     }
 
@@ -101,19 +141,7 @@ public class StoryManager : MonoBehaviour
         if (!RuntimeSceneTransition.ConsumeLatestArrival(HallwaySceneName, HallwayArrivalSpawnPointId))
             return false;
 
-        StartCoroutine(RefreshArrivalStoryRoutine(HallwayArrivalNodeKey));
-        return true;
-    }
-
-    private bool TryHandleSystemCoreArrivalStart()
-    {
-        if (!IsSystemCoreScene())
-            return false;
-
-        if (!RuntimeSceneTransition.ConsumeLatestArrival(SystemCoreSceneName, SystemCoreArrivalSpawnPointId))
-            return false;
-
-        StartCoroutine(RefreshArrivalStoryRoutine(SystemCoreArrivalNodeKey));
+        StartCoroutine(RefreshHallwayArrivalStoryRoutine());
         return true;
     }
 
@@ -123,22 +151,7 @@ public class StoryManager : MonoBehaviour
         return string.Equals(activeScene.name, HallwaySceneName, StringComparison.Ordinal);
     }
 
-    private static bool IsSystemCoreScene()
-    {
-        Scene activeScene = SceneManager.GetActiveScene();
-        return string.Equals(activeScene.name, SystemCoreSceneName, StringComparison.Ordinal);
-    }
-
-    private void EnsureSceneSetupComponents()
-    {
-        if (IsHallwayScene() && GetComponent<Chapter1AviSceneController>() == null)
-            gameObject.AddComponent<Chapter1AviSceneController>();
-
-        if (IsSystemCoreScene() && GetComponent<Chapter1CoreSceneSetup>() == null)
-            gameObject.AddComponent<Chapter1CoreSceneSetup>();
-    }
-
-    private IEnumerator RefreshArrivalStoryRoutine(string nodeKey)
+    private IEnumerator RefreshHallwayArrivalStoryRoutine()
     {
         for (int frame = 0; frame < 5; frame++)
             yield return null;
@@ -154,13 +167,13 @@ public class StoryManager : MonoBehaviour
         if (manager != null)
             manager.HideDialoguePanel();
 
-        if (string.Equals(CurrentNodeKey, nodeKey, StringComparison.Ordinal))
+        if (string.Equals(CurrentNodeKey, HallwayArrivalNodeKey, StringComparison.Ordinal))
         {
             RefreshCurrentNodePresentation();
             yield break;
         }
 
-        StartCoroutine(GameSession.Instance.GetCurrentStoryNode(nodeKey, HandleNodeResponse));
+        StartCoroutine(GameSession.Instance.GetCurrentStoryNode(HallwayArrivalNodeKey, HandleNodeResponse));
     }
 
     public IEnumerator ContinueCurrentNodeSilently(Action<GameSession.StoryNodeDetail, string> onComplete)
@@ -229,10 +242,10 @@ public class StoryManager : MonoBehaviour
         if (requestInFlight)
             return;
 
-        requestInFlight = true;
+        MarkRequestStarted();
         StartCoroutine(GameSession.Instance.RegisterStoryInteraction(interactionId, groupKey, (node, error) =>
         {
-            requestInFlight = false;
+            MarkRequestCompleted();
 
             if (!string.IsNullOrEmpty(error))
             {
@@ -261,16 +274,21 @@ public class StoryManager : MonoBehaviour
 
     private void HandleNodeResponse(GameSession.StoryNodeDetail node, string error)
     {
-        requestInFlight = false;
+        if (!CanHandleAsyncCallback())
+            return;
+
+        MarkRequestCompleted();
 
         if (!string.IsNullOrEmpty(error))
         {
+            pendingMikeHintPresentation = false;
             ReportError(error);
             return;
         }
 
         if (node == null)
         {
+            pendingMikeHintPresentation = false;
             ReportError("Story response was empty.");
             return;
         }
@@ -280,10 +298,62 @@ public class StoryManager : MonoBehaviour
 
     private void QueueNodePresentation(GameSession.StoryNodeDetail node)
     {
+        if (!CanHandleAsyncCallback())
+            return;
+
+        if (ShouldPresentMikeHintOverlay(node))
+        {
+            currentNode = node;
+            currentChoices = node.choices ?? new List<GameSession.StoryChoiceDetail>();
+            pendingMikeHintPresentation = false;
+            ShowMikeHintOverlay(node);
+            return;
+        }
+
+        pendingMikeHintPresentation = false;
+
         if (presentationRoutine != null)
             StopCoroutine(presentationRoutine);
 
         presentationRoutine = StartCoroutine(PresentNodeRoutine(node));
+    }
+
+    private bool CanHandleAsyncCallback()
+    {
+        return !isShuttingDown && this != null && gameObject != null && isActiveAndEnabled;
+    }
+
+    private void RecoverStalledRequestIfNeeded()
+    {
+        if (Time.unscaledTime - requestStartedAt < RequestStallTimeoutSeconds)
+            return;
+
+        recoveryRequestInFlight = true;
+        requestInFlight = false;
+        pendingMikeHintPresentation = false;
+        Debug.LogWarning("[StoryManager] Story request stalled; resyncing current node from backend.", this);
+        StartCoroutine(RecoverStalledRequestRoutine());
+    }
+
+    private IEnumerator RecoverStalledRequestRoutine()
+    {
+        yield return StartCoroutine(GameSession.Instance.GetCurrentStoryNode(null, (node, error) =>
+        {
+            recoveryRequestInFlight = false;
+            HandleNodeResponse(node, error);
+        }));
+    }
+
+    private void MarkRequestStarted()
+    {
+        requestInFlight = true;
+        requestStartedAt = Time.unscaledTime;
+    }
+
+    private void MarkRequestCompleted()
+    {
+        requestInFlight = false;
+        requestStartedAt = 0f;
     }
 
     private System.Collections.IEnumerator PresentNodeRoutine(GameSession.StoryNodeDetail node)
@@ -303,7 +373,7 @@ public class StoryManager : MonoBehaviour
             {
                 GameSession.StoryChoiceDetail choice = currentChoices[index];
                 labels[index] = choice.trustTokenCost > 0
-                    ? $"{choice.label} (-{choice.trustTokenCost} {(choice.trustTokenCost == 1 ? "Trust Token" : "Trust Tokens")})"
+                    ? $"{choice.label} (-{choice.trustTokenCost} Token)"
                     : choice.label;
             }
 
@@ -326,48 +396,8 @@ public class StoryManager : MonoBehaviour
             yield break;
         }
 
-        ShowDialogue(GetNodeTitle(node), node.bodyText, new[] { node.endChapter ? "Close" : "Continue" }, _ => HandleTerminalNode(node));
+        ShowDialogue(GetNodeTitle(node), node.bodyText, new[] { node.endChapter ? "Close" : "Continue" }, _ => CloseStoryDialogue());
         presentationRoutine = null;
-    }
-
-    private void HandleTerminalNode(GameSession.StoryNodeDetail node)
-    {
-        if (node != null && node.endChapter)
-        {
-            StartCoroutine(GenerateEndChapterReportAndClose(node));
-            return;
-        }
-
-        CloseStoryDialogue();
-    }
-
-    private IEnumerator GenerateEndChapterReportAndClose(GameSession.StoryNodeDetail node)
-    {
-        if (requestInFlight)
-            yield break;
-
-        requestInFlight = true;
-
-        GameSession.SecurityReportDetail report = null;
-        string requestError = null;
-        yield return StartCoroutine(GameSession.Instance.GenerateSecurityReport((response, error) =>
-        {
-            report = response;
-            requestError = error;
-        }));
-
-        requestInFlight = false;
-
-        if (!string.IsNullOrEmpty(requestError))
-        {
-            ReportError(requestError);
-            yield break;
-        }
-
-        if (report != null && choiceLogUI != null)
-            choiceLogUI.Show($"Security report logged. Accuracy-first summary saved with {report.finalTrustTokens} Trust Tokens.");
-
-        CloseStoryDialogue();
     }
 
     private System.Collections.IEnumerator WaitForPresentationGate(GameSession.StoryNodeDetail node)
@@ -376,11 +406,10 @@ public class StoryManager : MonoBehaviour
             yield break;
 
         StoryNpcEntranceController mentorPresentation = ResolvePresentationController(node.nodeKey);
+        bool mentorPending = mentorPresentation != null && !mentorPresentation.IsPresentationComplete(node.nodeKey);
         Chapter1AviSceneController aviPresentation = mentorPresentation == null
             ? ResolveAviPresentationController(node.nodeKey)
             : null;
-
-        bool mentorPending = mentorPresentation != null && !mentorPresentation.IsPresentationComplete(node.nodeKey);
         bool aviPending = aviPresentation != null && !aviPresentation.IsPresentationComplete(node.nodeKey);
         if (!mentorPending && !aviPending)
             yield break;
@@ -451,8 +480,26 @@ public class StoryManager : MonoBehaviour
         }
 
         GameSession.StoryChoiceDetail selectedChoice = currentChoices[selectionIndex];
+        pendingMikeHintPresentation = IsMikeHintChoice(selectedChoice);
         requestInFlight = true;
         StartCoroutine(GameSession.Instance.SubmitStoryChoice(currentNode.nodeKey, selectedChoice.id, HandleNodeResponse));
+    }
+
+    private void TryTriggerMikeHint()
+    {
+        if (requestInFlight || currentNode == null)
+        MarkRequestCompleted();
+
+        if (!TryGetMikeHintChoice(out GameSession.StoryChoiceDetail mikeHintChoice))
+            return;
+
+        DialogueManager manager = ResolveDialogueManager();
+        if (manager == null)
+            return;
+
+        pendingMikeHintPresentation = true;
+        requestInFlight = true;
+        StartCoroutine(GameSession.Instance.SubmitStoryChoice(currentNode.nodeKey, mikeHintChoice.id, HandleNodeResponse));
     }
 
     private void ContinueCurrentNode()
@@ -462,6 +509,73 @@ public class StoryManager : MonoBehaviour
 
         requestInFlight = true;
         StartCoroutine(GameSession.Instance.ContinueStoryNode(currentNode.nodeKey, HandleNodeResponse));
+    }
+
+    private bool TryGetMikeHintChoice(out GameSession.StoryChoiceDetail mikeHintChoice)
+    {
+        if (currentChoices != null)
+        {
+            for (int index = 0; index < currentChoices.Count; index++)
+            {
+                GameSession.StoryChoiceDetail candidate = currentChoices[index];
+                if (IsMikeHintChoice(candidate))
+                {
+                    mikeHintChoice = candidate;
+                    return true;
+                }
+            }
+        }
+
+        mikeHintChoice = null;
+        return false;
+    }
+
+    private static bool IsMikeHintChoice(GameSession.StoryChoiceDetail choice)
+    {
+        if (choice == null)
+            return false;
+
+        if (string.Equals(choice.id, MikeHintChoiceId, StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        return !string.IsNullOrWhiteSpace(choice.label)
+            && choice.label.IndexOf("MIKE", StringComparison.OrdinalIgnoreCase) >= 0
+            && choice.trustTokenCost > 0;
+    }
+
+    private bool ShouldPresentMikeHintOverlay(GameSession.StoryNodeDetail node)
+    {
+        return pendingMikeHintPresentation
+            && node != null
+            && string.Equals(node.speaker, "Mike", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private void ShowMikeHintOverlay(GameSession.StoryNodeDetail node)
+    {
+        DialogueManager manager = ResolveDialogueManager();
+        if (manager == null)
+        {
+            ReportError("No DialogueManager was found in the scene.");
+            return;
+        }
+
+        LockMovement();
+        manager.ShowHintOverlay(GetNodeTitle(node), node.bodyText, ContinueFromMikeHint);
+    }
+
+    private void ContinueFromMikeHint()
+    {
+        DialogueManager manager = ResolveDialogueManager();
+        if (manager != null)
+            manager.HideHintOverlay();
+
+        if (currentNode != null && currentNode.canContinue)
+        {
+            ContinueCurrentNode();
+            return;
+        }
+
+        CloseStoryDialogue();
     }
 
     private bool ShouldAutoTransitionWakeNode(GameSession.StoryNodeDetail node)
@@ -563,7 +677,6 @@ public class StoryManager : MonoBehaviour
             if (candidate != null && candidate.HasUsableUi)
             {
                 dialogueManager = candidate;
-                return dialogueManager;
             }
         }
 
@@ -586,6 +699,10 @@ public class StoryManager : MonoBehaviour
 
     private void CloseStoryDialogue()
     {
+        DialogueManager manager = ResolveDialogueManager();
+        if (manager != null)
+            manager.HideHintOverlay();
+
         ReleaseMovement();
     }
 

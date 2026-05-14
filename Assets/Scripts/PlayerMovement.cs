@@ -69,6 +69,12 @@ public class PlayerMovement : MonoBehaviour
             movementLocks.Add(preservedLock);
     }
 
+    public static void ResetMovementState(string preservedLockId = null)
+    {
+        ClearMovementLocksExcept(preservedLockId);
+        GameState.CanPlayerMove = true;
+    }
+
     public static void ApplySavedPositionOnce(Vector3 worldPosition)
     {
         pendingSavedPosition = worldPosition;

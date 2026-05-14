@@ -3,19 +3,31 @@ using UnityEngine.SceneManagement;
 using TMPro;
 using System.Collections;
 using System.Collections.Generic;
+using UnityEngine.UI;
 
 public class MainMenuUI : MonoBehaviour
 {
+    private const string LoadPanelName = "LoadSlotPanel";
+    private const string LoadStatusName = "LoadStatusText";
+
     [SerializeField] private string loadingSceneName = "LoadingScene";
     [SerializeField] private string gameSceneName = "RoomScene";
     [SerializeField] private TMP_InputField operatorNameInput;
+    [SerializeField] private Button loadButton;
+    [SerializeField] private GameObject loadPanelRoot;
+    [SerializeField] private TMP_Text loadStatusText;
+    [SerializeField] private Button closeLoadPanelButton;
+    [SerializeField] private Button[] loadSlotButtons = new Button[5];
 
     private readonly List<GameSession.SaveSlotInfo> cachedSaveSlots = new List<GameSession.SaveSlotInfo>();
+    private bool loadUiInitialized;
 
     private void Awake()
     {
         Time.timeScale = 1f;
         PlayerMovement.RemoveMovementLock("Pause");
+        EnsureLoadUi();
+        CloseLoadPanel();
     }
 
     public void Play()
@@ -26,14 +38,35 @@ public class MainMenuUI : MonoBehaviour
 
         Time.timeScale = 1f;
         PlayerMovement.RemoveMovementLock("Pause");
-        LoadingScreen.skipNameEntry = false;
+        LoadingScreen.skipNameEntry = !string.IsNullOrWhiteSpace(LoadingScreen.operatorName);
         LoadingScreen.nextSceneName = gameSceneName;
         SceneManager.LoadScene(loadingSceneName);
     }
 
     public void RefreshContinueSlots()
     {
-        StartCoroutine(RefreshContinueSlotsRoutine());
+        StartCoroutine(RefreshContinueSlotsRoutine(true));
+    }
+
+    public void OpenLoadPanel()
+    {
+        EnsureLoadUi();
+
+        if (loadPanelRoot == null)
+        {
+            Debug.LogWarning("[MainMenuUI] Unable to open the load panel because no UI root is available.");
+            return;
+        }
+
+        loadPanelRoot.SetActive(true);
+        UpdateLoadSlotLabels();
+        StartCoroutine(RefreshContinueSlotsRoutine(true));
+    }
+
+    public void CloseLoadPanel()
+    {
+        if (loadPanelRoot != null)
+            loadPanelRoot.SetActive(false);
     }
 
     public void ContinueFromSlotNumber(int slotNumber)
@@ -41,10 +74,16 @@ public class MainMenuUI : MonoBehaviour
         StartCoroutine(ContinueFromSlotNumberRoutine(slotNumber));
     }
 
-    private IEnumerator RefreshContinueSlotsRoutine()
+    private IEnumerator RefreshContinueSlotsRoutine(bool updateUi)
     {
         SetOperatorNameFromInput();
         GameSession.EnsureExists();
+
+        if (updateUi)
+        {
+            SetLoadButtonsInteractable(false);
+            SetLoadStatus("Loading save slots...");
+        }
 
         List<GameSession.SaveSlotInfo> slots = null;
         string error = null;
@@ -58,23 +97,45 @@ public class MainMenuUI : MonoBehaviour
         if (!string.IsNullOrEmpty(error))
         {
             Debug.LogWarning($"[MainMenuUI] Unable to list save slots: {error}");
+
+            cachedSaveSlots.Clear();
+            UpdateLoadSlotLabels();
+            if (updateUi)
+            {
+                SetLoadButtonsInteractable(true);
+                SetLoadStatus(error);
+            }
+
             yield break;
         }
 
         cachedSaveSlots.Clear();
         if (slots != null)
             cachedSaveSlots.AddRange(slots);
+
+        UpdateLoadSlotLabels();
+
+        if (updateUi)
+        {
+            SetLoadButtonsInteractable(true);
+            SetLoadStatus(cachedSaveSlots.Count > 0 ? "Choose a save slot to load." : "No save data found.");
+        }
     }
 
     private IEnumerator ContinueFromSlotNumberRoutine(int slotNumber)
     {
         if (slotNumber < 1 || slotNumber > 5)
+        {
+            SetLoadStatus("Choose a valid save slot.");
             yield break;
+        }
 
         SetOperatorNameFromInput();
+        SetLoadButtonsInteractable(false);
+        SetLoadStatus($"Loading Slot {slotNumber}...");
 
         if (cachedSaveSlots.Count == 0)
-            yield return StartCoroutine(RefreshContinueSlotsRoutine());
+            yield return StartCoroutine(RefreshContinueSlotsRoutine(true));
 
         GameSession.SaveSlotInfo slot = null;
         for (int index = 0; index < cachedSaveSlots.Count; index++)
@@ -90,6 +151,8 @@ public class MainMenuUI : MonoBehaviour
         if (slot == null || string.IsNullOrWhiteSpace(slot.id))
         {
             Debug.LogWarning($"[MainMenuUI] Slot {slotNumber} is empty.");
+            SetLoadButtonsInteractable(true);
+            SetLoadStatus($"Slot {slotNumber} is empty.");
             yield break;
         }
 
@@ -105,6 +168,8 @@ public class MainMenuUI : MonoBehaviour
         if (!string.IsNullOrEmpty(loadError))
         {
             Debug.LogWarning($"[MainMenuUI] Unable to continue from slot {slotNumber}: {loadError}");
+            SetLoadButtonsInteractable(true);
+            SetLoadStatus(loadError);
             yield break;
         }
 
@@ -127,6 +192,252 @@ public class MainMenuUI : MonoBehaviour
         string candidate = operatorNameInput.text != null ? operatorNameInput.text.Trim() : string.Empty;
         if (!string.IsNullOrWhiteSpace(candidate))
             LoadingScreen.operatorName = candidate;
+    }
+
+    private void EnsureLoadUi()
+    {
+        if (loadUiInitialized)
+            return;
+
+        loadButton = loadButton != null ? loadButton : FindButtonByName("LoadButton");
+        loadPanelRoot = loadPanelRoot != null ? loadPanelRoot : FindChildByName(LoadPanelName);
+        loadStatusText = loadStatusText != null ? loadStatusText : FindTextByName(LoadStatusName);
+        closeLoadPanelButton = closeLoadPanelButton != null ? closeLoadPanelButton : FindButtonByName("CloseLoadPanelButton");
+
+        AssignExistingLoadSlotButtons();
+
+        if (loadPanelRoot == null)
+            CreateLoadPanel();
+
+        WireLoadUi();
+        UpdateLoadSlotLabels();
+        loadUiInitialized = true;
+    }
+
+    private void AssignExistingLoadSlotButtons()
+    {
+        for (int index = 0; index < loadSlotButtons.Length; index++)
+        {
+            if (loadSlotButtons[index] != null)
+                continue;
+
+            loadSlotButtons[index] = FindButtonByName($"LoadSlotButton{index + 1}");
+        }
+    }
+
+    private void WireLoadUi()
+    {
+        if (loadButton != null)
+        {
+            loadButton.onClick.RemoveListener(OpenLoadPanel);
+            loadButton.onClick.AddListener(OpenLoadPanel);
+        }
+
+        if (closeLoadPanelButton != null)
+        {
+            closeLoadPanelButton.onClick.RemoveListener(CloseLoadPanel);
+            closeLoadPanelButton.onClick.AddListener(CloseLoadPanel);
+        }
+
+        for (int index = 0; index < loadSlotButtons.Length; index++)
+        {
+            Button button = loadSlotButtons[index];
+            if (button == null)
+                continue;
+
+            int slotNumber = index + 1;
+            button.onClick.RemoveAllListeners();
+            button.onClick.AddListener(() => ContinueFromSlotNumber(slotNumber));
+        }
+    }
+
+    private void CreateLoadPanel()
+    {
+        Canvas canvas = GetComponentInParent<Canvas>();
+        if (canvas == null)
+            canvas = FindFirstObjectByType<Canvas>();
+
+        if (canvas == null)
+            return;
+
+        loadPanelRoot = new GameObject(LoadPanelName, typeof(RectTransform), typeof(Image));
+        loadPanelRoot.transform.SetParent(canvas.transform, false);
+
+        RectTransform panelRect = loadPanelRoot.GetComponent<RectTransform>();
+        panelRect.anchorMin = Vector2.zero;
+        panelRect.anchorMax = Vector2.one;
+        panelRect.offsetMin = Vector2.zero;
+        panelRect.offsetMax = Vector2.zero;
+
+        Image panelImage = loadPanelRoot.GetComponent<Image>();
+        panelImage.color = new Color(0f, 0f, 0f, 0.72f);
+
+        CreateText(loadPanelRoot.transform, "LoadPanelTitle", "Load Save", 42f, new Vector2(0.5f, 1f), new Vector2(0f, -72f));
+        loadStatusText = CreateText(loadPanelRoot.transform, LoadStatusName, "Choose a save slot to load.", 26f, new Vector2(0.5f, 1f), new Vector2(0f, -130f));
+
+        for (int index = 0; index < loadSlotButtons.Length; index++)
+        {
+            Button slotButton = CreateButton(loadPanelRoot.transform, $"LoadSlotButton{index + 1}", BuildEmptySlotLabel(index + 1), new Vector2(0.5f, 1f), new Vector2(0f, -210f - (index * 92f)));
+            loadSlotButtons[index] = slotButton;
+        }
+
+        closeLoadPanelButton = CreateButton(loadPanelRoot.transform, "CloseLoadPanelButton", "Back", new Vector2(0.5f, 1f), new Vector2(0f, -690f));
+    }
+
+    private void UpdateLoadSlotLabels()
+    {
+        for (int index = 0; index < loadSlotButtons.Length; index++)
+        {
+            Button button = loadSlotButtons[index];
+            if (button == null)
+                continue;
+
+            int slotNumber = index + 1;
+            GameSession.SaveSlotInfo slot = FindCachedSlot(slotNumber);
+            SetButtonLabel(button, slot == null ? BuildEmptySlotLabel(slotNumber) : BuildOccupiedSlotLabel(slot));
+        }
+    }
+
+    private GameSession.SaveSlotInfo FindCachedSlot(int slotNumber)
+    {
+        for (int index = 0; index < cachedSaveSlots.Count; index++)
+        {
+            GameSession.SaveSlotInfo slot = cachedSaveSlots[index];
+            if (slot != null && slot.slotNumber == slotNumber)
+                return slot;
+        }
+
+        return null;
+    }
+
+    private void SetLoadButtonsInteractable(bool interactable)
+    {
+        for (int index = 0; index < loadSlotButtons.Length; index++)
+        {
+            if (loadSlotButtons[index] != null)
+                loadSlotButtons[index].interactable = interactable;
+        }
+
+        if (closeLoadPanelButton != null)
+            closeLoadPanelButton.interactable = interactable;
+    }
+
+    private void SetLoadStatus(string message)
+    {
+        if (loadStatusText != null)
+            loadStatusText.text = message;
+    }
+
+    private string BuildEmptySlotLabel(int slotNumber)
+    {
+        return $"Slot {slotNumber} - Empty";
+    }
+
+    private string BuildOccupiedSlotLabel(GameSession.SaveSlotInfo slot)
+    {
+        string slotName = string.IsNullOrWhiteSpace(slot.slotName) ? "Unnamed Save" : slot.slotName.Trim();
+        string sceneName = string.IsNullOrWhiteSpace(slot.currentScene) ? gameSceneName : slot.currentScene.Trim();
+        return $"Slot {slot.slotNumber} - {slotName}\nScene: {sceneName}";
+    }
+
+    private Button CreateButton(Transform parent, string objectName, string label, Vector2 anchor, Vector2 anchoredPosition)
+    {
+        GameObject buttonObject = new GameObject(objectName, typeof(RectTransform), typeof(Image), typeof(Button));
+        buttonObject.transform.SetParent(parent, false);
+
+        RectTransform rectTransform = buttonObject.GetComponent<RectTransform>();
+        rectTransform.anchorMin = anchor;
+        rectTransform.anchorMax = anchor;
+        rectTransform.pivot = new Vector2(0.5f, 1f);
+        rectTransform.sizeDelta = new Vector2(720f, 72f);
+        rectTransform.anchoredPosition = anchoredPosition;
+
+        Image image = buttonObject.GetComponent<Image>();
+        image.color = new Color(0.89f, 0.74f, 0.27f, 1f);
+
+        Button button = buttonObject.GetComponent<Button>();
+        button.targetGraphic = image;
+
+        TMP_Text buttonText = CreateText(buttonObject.transform, $"{objectName}Label", label, 24f, new Vector2(0.5f, 0.5f), Vector2.zero);
+        buttonText.alignment = TextAlignmentOptions.Center;
+        buttonText.enableWordWrapping = true;
+
+        return button;
+    }
+
+    private TMP_Text CreateText(Transform parent, string objectName, string text, float fontSize, Vector2 anchor, Vector2 anchoredPosition)
+    {
+        GameObject textObject = new GameObject(objectName, typeof(RectTransform), typeof(TextMeshProUGUI));
+        textObject.transform.SetParent(parent, false);
+
+        RectTransform rectTransform = textObject.GetComponent<RectTransform>();
+        rectTransform.anchorMin = anchor;
+        rectTransform.anchorMax = anchor;
+        rectTransform.pivot = new Vector2(0.5f, 1f);
+        rectTransform.sizeDelta = new Vector2(900f, 60f);
+        rectTransform.anchoredPosition = anchoredPosition;
+
+        TextMeshProUGUI textLabel = textObject.GetComponent<TextMeshProUGUI>();
+        textLabel.text = text;
+        textLabel.fontSize = fontSize;
+        textLabel.alignment = TextAlignmentOptions.Center;
+        textLabel.color = Color.white;
+        if (TMP_Settings.defaultFontAsset != null)
+            textLabel.font = TMP_Settings.defaultFontAsset;
+
+        return textLabel;
+    }
+
+    private void SetButtonLabel(Button button, string label)
+    {
+        if (button == null)
+            return;
+
+        TMP_Text text = button.GetComponentInChildren<TMP_Text>(true);
+        if (text != null)
+            text.text = label;
+    }
+
+    private Button FindButtonByName(string objectName)
+    {
+        Transform match = FindTransformByName(objectName);
+        return match != null ? match.GetComponent<Button>() : null;
+    }
+
+    private TMP_Text FindTextByName(string objectName)
+    {
+        Transform match = FindTransformByName(objectName);
+        return match != null ? match.GetComponent<TMP_Text>() : null;
+    }
+
+    private GameObject FindChildByName(string objectName)
+    {
+        Transform match = FindTransformByName(objectName);
+        return match != null ? match.gameObject : null;
+    }
+
+    private Transform FindTransformByName(string objectName)
+    {
+        Transform[] transforms = Resources.FindObjectsOfTypeAll<Transform>();
+        for (int index = 0; index < transforms.Length; index++)
+        {
+            Transform candidate = transforms[index];
+            if (candidate == null)
+                continue;
+
+            if (!string.Equals(candidate.name, objectName, System.StringComparison.Ordinal))
+                continue;
+
+            if (candidate.hideFlags != HideFlags.None)
+                continue;
+
+            if (!candidate.gameObject.scene.IsValid())
+                continue;
+
+            return candidate;
+        }
+
+        return null;
     }
 
 

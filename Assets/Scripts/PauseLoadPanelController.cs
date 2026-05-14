@@ -6,40 +6,36 @@ using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 
-public class PauseSavePanelController
+public class PauseLoadPanelController
 {
-    private const string SavePanelName = "SaveSlotPanel";
     private const string LoadPanelName = "LoadSlotPanel";
+    private const string SavePanelName = "SaveSlotPanel";
 
     private readonly PauseMenu pauseMenu;
     private readonly GameObject pauseMenuRoot;
     private readonly RectTransform pauseMenuRect;
-    private readonly List<GameObject> menuObjects = new List<GameObject>();
     private readonly Dictionary<int, GameSession.SaveSlotInfo> slotsByNumber = new Dictionary<int, GameSession.SaveSlotInfo>();
 
-    private Button saveButton;
+    private Button loadButton;
     private GameObject panelRoot;
     private TMP_Text statusText;
-    private GameObject confirmRoot;
-    private TMP_Text confirmText;
     private readonly Button[] slotButtons = new Button[5];
 
-    private int pendingSlotNumber = -1;
     private bool hasLoadedSlots;
     private bool isRefreshingSlots;
 
     public bool IsOpen => panelRoot != null && panelRoot.activeInHierarchy;
 
-    private PauseSavePanelController(PauseMenu pauseMenu, GameObject pauseMenuRoot)
+    private PauseLoadPanelController(PauseMenu pauseMenu, GameObject pauseMenuRoot)
     {
         this.pauseMenu = pauseMenu;
         this.pauseMenuRoot = pauseMenuRoot;
         pauseMenuRect = pauseMenuRoot != null ? pauseMenuRoot.GetComponent<RectTransform>() : null;
     }
 
-    public static PauseSavePanelController Create(PauseMenu pauseMenu, GameObject pauseMenuRoot)
+    public static PauseLoadPanelController Create(PauseMenu pauseMenu, GameObject pauseMenuRoot)
     {
-        PauseSavePanelController controller = new PauseSavePanelController(pauseMenu, pauseMenuRoot);
+        PauseLoadPanelController controller = new PauseLoadPanelController(pauseMenu, pauseMenuRoot);
         controller.Initialize();
         return controller;
     }
@@ -51,19 +47,16 @@ public class PauseSavePanelController
 
         SetMainMenuVisible(false);
         panelRoot.SetActive(true);
-        HideConfirmation();
         hasLoadedSlots = false;
         isRefreshingSlots = true;
         SetStatus("Loading save slots...");
-        SetButtonsInteractable(true);
+        SetButtonsInteractable(false);
         UpdateSlotLabels();
         pauseMenu.StartCoroutine(RefreshSlots());
     }
 
     public void HidePanel()
     {
-        HideConfirmation();
-
         if (panelRoot != null)
             panelRoot.SetActive(false);
 
@@ -80,24 +73,15 @@ public class PauseSavePanelController
     {
         if (pauseMenuRoot == null || pauseMenuRect == null)
         {
-            Debug.LogWarning("PauseSavePanelController could not initialize because the pause menu root is missing a RectTransform.");
+            Debug.LogWarning("PauseLoadPanelController could not initialize because the pause menu root is missing a RectTransform.");
             return;
         }
 
         GameSession.EnsureExists();
 
-        GameObject stalePanelRoot = FindDirectChild(SavePanelName);
+        GameObject stalePanelRoot = FindDirectChild(LoadPanelName);
         if (stalePanelRoot != null)
             stalePanelRoot.SetActive(false);
-
-        for (int index = 0; index < pauseMenuRect.childCount; index++)
-        {
-            GameObject child = pauseMenuRect.GetChild(index).gameObject;
-            if (child == stalePanelRoot)
-                continue;
-
-            menuObjects.Add(child);
-        }
 
         if (stalePanelRoot != null)
             UnityEngine.Object.Destroy(stalePanelRoot);
@@ -108,50 +92,45 @@ public class PauseSavePanelController
 
         TMP_Text titleTemplate = pauseMenuRoot.GetComponentInChildren<TMP_Text>(true);
 
-        bool createdSaveButton = CreateSaveButton(templateButton);
-        if (createdSaveButton && saveButton != null)
-            menuObjects.Add(saveButton.gameObject);
-
+        CreateLoadButton(templateButton);
         CreatePanel(templateButton, titleTemplate);
         HidePanel();
     }
 
-    private bool CreateSaveButton(Button templateButton)
+    private void CreateLoadButton(Button templateButton)
     {
-        saveButton = FindButton("SaveButton");
-        bool createdSaveButton = false;
+        loadButton = FindButton("LoadButton");
+        bool createdLoadButton = false;
 
-        if (saveButton == null)
+        if (loadButton == null)
         {
-            saveButton = UnityEngine.Object.Instantiate(templateButton, templateButton.transform.parent);
-            saveButton.name = "SaveButton";
-            createdSaveButton = true;
+            loadButton = UnityEngine.Object.Instantiate(templateButton, templateButton.transform.parent);
+            loadButton.name = "LoadButton";
+            createdLoadButton = true;
         }
 
-        SetButtonLabel(saveButton, "Save Game");
-        saveButton.onClick = new Button.ButtonClickedEvent();
-        saveButton.onClick.AddListener(pauseMenu.OpenSavePanel);
+        SetButtonLabel(loadButton, "Load Game");
+        loadButton.onClick = new Button.ButtonClickedEvent();
+        loadButton.onClick.AddListener(pauseMenu.OpenLoadPanel);
 
-        if (createdSaveButton)
+        if (createdLoadButton)
         {
-            RectTransform saveRect = saveButton.GetComponent<RectTransform>();
+            RectTransform loadRect = loadButton.GetComponent<RectTransform>();
             RectTransform resumeRect = templateButton.GetComponent<RectTransform>();
-            saveRect.anchoredPosition = new Vector2(resumeRect.anchoredPosition.x, -300f);
+            loadRect.anchoredPosition = new Vector2(resumeRect.anchoredPosition.x, -390f);
 
-            LayoutElement saveLayout = saveButton.GetComponent<LayoutElement>();
-            if (saveLayout == null)
-                saveLayout = saveButton.gameObject.AddComponent<LayoutElement>();
+            LayoutElement loadLayout = loadButton.GetComponent<LayoutElement>();
+            if (loadLayout == null)
+                loadLayout = loadButton.gameObject.AddComponent<LayoutElement>();
 
-            saveLayout.preferredWidth = Mathf.Max(resumeRect.rect.width, 400f);
-            saveRect.SetSiblingIndex(Mathf.Max(0, pauseMenuRect.childCount - 1));
+            loadLayout.preferredWidth = Mathf.Max(resumeRect.rect.width, 400f);
+            loadRect.SetSiblingIndex(Mathf.Max(0, pauseMenuRect.childCount - 1));
         }
-
-        return createdSaveButton;
     }
 
     private void CreatePanel(Button templateButton, TMP_Text titleTemplate)
     {
-        panelRoot = new GameObject(SavePanelName, typeof(RectTransform));
+        panelRoot = new GameObject(LoadPanelName, typeof(RectTransform));
         RectTransform panelRect = panelRoot.GetComponent<RectTransform>();
         panelRoot.transform.SetParent(pauseMenuRoot.transform, false);
         panelRect.anchorMin = Vector2.zero;
@@ -160,7 +139,7 @@ public class PauseSavePanelController
         panelRect.offsetMax = Vector2.zero;
         panelRoot.SetActive(false);
 
-        TMP_Text panelTitle = CreateTitle(titleTemplate, panelRoot.transform, "Save Progress", -60f, 58f);
+        TMP_Text panelTitle = CreateTitle(titleTemplate, panelRoot.transform, "Load Progress", -60f, 58f);
         panelTitle.alignment = TextAlignmentOptions.Center;
         statusText = CreateTitle(titleTemplate, panelRoot.transform, string.Empty, -120f, 28f);
         statusText.alignment = TextAlignmentOptions.Center;
@@ -170,7 +149,7 @@ public class PauseSavePanelController
         {
             int slotNumber = slotIndex + 1;
             Button slotButton = UnityEngine.Object.Instantiate(templateButton, panelRoot.transform);
-            slotButton.name = $"SaveSlotButton{slotNumber}";
+            slotButton.name = $"LoadSlotButton{slotNumber}";
             slotButton.onClick = new Button.ButtonClickedEvent();
             slotButton.onClick.AddListener(() => OnSlotPressed(slotNumber));
 
@@ -179,8 +158,7 @@ public class PauseSavePanelController
             slotRect.anchorMax = new Vector2(0.5f, 1f);
             slotRect.pivot = new Vector2(0.5f, 1f);
             slotRect.anchoredPosition = new Vector2(0f, -180f - (slotIndex * 96f));
-            
-            // Use LayoutElement to constrain width for proper text layout
+
             LayoutElement slotLayout = slotButton.GetComponent<LayoutElement>();
             if (slotLayout == null)
                 slotLayout = slotButton.gameObject.AddComponent<LayoutElement>();
@@ -191,9 +169,9 @@ public class PauseSavePanelController
         }
 
         Button backButton = UnityEngine.Object.Instantiate(templateButton, panelRoot.transform);
-        backButton.name = "SavePanelBackButton";
-    backButton.onClick = new Button.ButtonClickedEvent();
-        backButton.onClick.AddListener(pauseMenu.CloseSavePanel);
+        backButton.name = "LoadPanelBackButton";
+        backButton.onClick = new Button.ButtonClickedEvent();
+        backButton.onClick.AddListener(pauseMenu.CloseLoadPanel);
         SetButtonLabel(backButton, "Back");
 
         RectTransform backRect = backButton.GetComponent<RectTransform>();
@@ -201,65 +179,11 @@ public class PauseSavePanelController
         backRect.anchorMax = new Vector2(0.5f, 1f);
         backRect.pivot = new Vector2(0.5f, 1f);
         backRect.anchoredPosition = new Vector2(0f, -660f);
-        
+
         LayoutElement backLayout = backButton.GetComponent<LayoutElement>();
         if (backLayout == null)
             backLayout = backButton.gameObject.AddComponent<LayoutElement>();
         backLayout.preferredWidth = 600f;
-
-        CreateConfirmationOverlay(templateButton, titleTemplate);
-    }
-
-    private void CreateConfirmationOverlay(Button templateButton, TMP_Text titleTemplate)
-    {
-        confirmRoot = new GameObject("OverwriteConfirmPanel", typeof(RectTransform), typeof(Image));
-        RectTransform confirmRect = confirmRoot.GetComponent<RectTransform>();
-        confirmRoot.transform.SetParent(panelRoot.transform, false);
-        confirmRect.anchorMin = Vector2.zero;
-        confirmRect.anchorMax = Vector2.one;
-        confirmRect.offsetMin = Vector2.zero;
-        confirmRect.offsetMax = Vector2.zero;
-        confirmRoot.GetComponent<Image>().color = new Color(0f, 0f, 0f, 0.75f);
-
-        confirmText = CreateTitle(titleTemplate, confirmRoot.transform, "Overwrite this slot?", -420f, 38f);
-        confirmText.alignment = TextAlignmentOptions.Center;
-        confirmText.enableWordWrapping = true;
-
-        Button confirmButton = UnityEngine.Object.Instantiate(templateButton, confirmRoot.transform);
-        confirmButton.name = "ConfirmOverwriteButton";
-    confirmButton.onClick = new Button.ButtonClickedEvent();
-        confirmButton.onClick.AddListener(ConfirmOverwrite);
-        SetButtonLabel(confirmButton, "Confirm Overwrite");
-
-        RectTransform confirmButtonRect = confirmButton.GetComponent<RectTransform>();
-        confirmButtonRect.anchorMin = new Vector2(0.5f, 1f);
-        confirmButtonRect.anchorMax = new Vector2(0.5f, 1f);
-        confirmButtonRect.pivot = new Vector2(0.5f, 1f);
-        confirmButtonRect.anchoredPosition = new Vector2(0f, -560f);
-        
-        LayoutElement confirmLayout = confirmButton.GetComponent<LayoutElement>();
-        if (confirmLayout == null)
-            confirmLayout = confirmButton.gameObject.AddComponent<LayoutElement>();
-        confirmLayout.preferredWidth = 600f;
-
-        Button cancelButton = UnityEngine.Object.Instantiate(templateButton, confirmRoot.transform);
-        cancelButton.name = "CancelOverwriteButton";
-    cancelButton.onClick = new Button.ButtonClickedEvent();
-        cancelButton.onClick.AddListener(HideConfirmation);
-        SetButtonLabel(cancelButton, "Cancel");
-
-        RectTransform cancelButtonRect = cancelButton.GetComponent<RectTransform>();
-        cancelButtonRect.anchorMin = new Vector2(0.5f, 1f);
-        cancelButtonRect.anchorMax = new Vector2(0.5f, 1f);
-        cancelButtonRect.pivot = new Vector2(0.5f, 1f);
-        cancelButtonRect.anchoredPosition = new Vector2(0f, -680f);
-        
-        LayoutElement cancelLayout = cancelButton.GetComponent<LayoutElement>();
-        if (cancelLayout == null)
-            cancelLayout = cancelButton.gameObject.AddComponent<LayoutElement>();
-        cancelLayout.preferredWidth = 600f;
-
-        confirmRoot.SetActive(false);
     }
 
     private IEnumerator RefreshSlots()
@@ -287,7 +211,7 @@ public class PauseSavePanelController
 
             hasLoadedSlots = true;
             UpdateSlotLabels();
-            SetStatus($"Saving as {GameSession.Instance.OperatorName}");
+            SetStatus(slotsByNumber.Count > 0 ? "Choose a save slot to load." : "No saved progress found.");
         }));
 
         isRefreshingSlots = false;
@@ -302,51 +226,10 @@ public class PauseSavePanelController
             return;
         }
 
-        pauseMenu.StartCoroutine(ResolveSlotSelection(slotNumber));
+        pauseMenu.StartCoroutine(LoadFromSlot(slotNumber));
     }
 
-    private IEnumerator ResolveSlotSelection(int slotNumber)
-    {
-        if (!hasLoadedSlots || !slotsByNumber.ContainsKey(slotNumber))
-        {
-            SetStatus(!hasLoadedSlots ? "Loading save slots..." : $"Checking Slot {slotNumber}...");
-            SetButtonsInteractable(false);
-            yield return pauseMenu.StartCoroutine(RefreshSlots());
-
-            if (!hasLoadedSlots)
-            {
-                SetStatus("Save slots are unavailable right now. Try reopening the panel.");
-                yield break;
-            }
-        }
-
-        if (slotsByNumber.ContainsKey(slotNumber))
-        {
-            ShowOverwriteConfirmation(slotNumber);
-            yield break;
-        }
-
-        yield return pauseMenu.StartCoroutine(SaveToSlot(slotNumber));
-    }
-
-    private void ShowOverwriteConfirmation(int slotNumber)
-    {
-        pendingSlotNumber = slotNumber;
-        confirmText.text = $"Slot {slotNumber} already has saved progress. Overwrite it?";
-        confirmRoot.SetActive(true);
-    }
-
-    private void ConfirmOverwrite()
-    {
-        int slotNumber = pendingSlotNumber;
-        pendingSlotNumber = -1;
-        HideConfirmation();
-
-        if (slotNumber > 0)
-            pauseMenu.StartCoroutine(SaveToSlot(slotNumber));
-    }
-
-    private IEnumerator SaveToSlot(int slotNumber)
+    private IEnumerator LoadFromSlot(int slotNumber)
     {
         if (!hasLoadedSlots)
         {
@@ -354,38 +237,35 @@ public class PauseSavePanelController
             yield break;
         }
 
-        SetButtonsInteractable(false);
-        SetStatus($"Saving to Slot {slotNumber}...");
-
-        GameSession.SaveSlotInfo savedSlot = null;
-        string saveError = null;
-        yield return GameSession.Instance.StartCoroutine(GameSession.Instance.SaveToSlot(slotNumber, null, (slot, error) =>
+        if (!slotsByNumber.TryGetValue(slotNumber, out GameSession.SaveSlotInfo slot) || slot == null || string.IsNullOrWhiteSpace(slot.id))
         {
-            savedSlot = slot;
-            saveError = error;
+            SetStatus($"Slot {slotNumber} is empty.");
+            yield break;
+        }
+
+        SetButtonsInteractable(false);
+        SetStatus($"Loading Slot {slotNumber}...");
+
+        GameSession.SaveSlotDetail loadedSlot = null;
+        string loadError = null;
+        yield return GameSession.Instance.StartCoroutine(GameSession.Instance.LoadSaveSlot(slot.id, (result, error) =>
+        {
+            loadedSlot = result;
+            loadError = error;
         }));
 
-        if (!string.IsNullOrEmpty(saveError))
+        if (!string.IsNullOrEmpty(loadError))
         {
-            SetButtonsInteractable(hasLoadedSlots);
-            SetStatus(saveError);
+            SetButtonsInteractable(true);
+            SetStatus(loadError);
             yield break;
         }
 
-        if (savedSlot != null)
-            slotsByNumber[slotNumber] = savedSlot;
+        string targetScene = loadedSlot != null && !string.IsNullOrWhiteSpace(loadedSlot.currentScene)
+            ? loadedSlot.currentScene
+            : "RoomScene";
 
-        UpdateSlotLabels();
-        SetStatus("Refreshing save slots...");
-        yield return pauseMenu.StartCoroutine(RefreshSlots());
-
-        if (!hasLoadedSlots)
-        {
-            SetStatus($"Saved to Slot {slotNumber}, but slot refresh failed.");
-            yield break;
-        }
-
-        SetStatus($"Saved to Slot {slotNumber}.");
+        pauseMenu.BeginLoadedGameTransition(targetScene);
     }
 
     private void UpdateSlotLabels()
@@ -431,13 +311,6 @@ public class PauseSavePanelController
     {
         if (statusText != null)
             statusText.text = message;
-    }
-
-    private void HideConfirmation()
-    {
-        pendingSlotNumber = -1;
-        if (confirmRoot != null)
-            confirmRoot.SetActive(false);
     }
 
     private Button FindButton(string name)
