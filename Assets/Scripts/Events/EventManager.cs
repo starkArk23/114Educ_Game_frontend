@@ -23,6 +23,30 @@ public class EventManager : MonoBehaviour
     private CyberEventData currentEvent;
     private bool isEventActive;
 
+    public bool IsEventActive => isEventActive;
+    public string CurrentEventId => currentEvent != null ? currentEvent.eventId : null;
+    public string CurrentEventTitle => currentEvent != null ? currentEvent.title : null;
+    public IReadOnlyCollection<string> UnlockedFlags => eventFlags;
+
+    public bool IsEventAvailable(CyberEventData data)
+    {
+        return CanStartEvent(data);
+    }
+
+    public void RestoreUnlockedFlags(IEnumerable<string> flags)
+    {
+        eventFlags.Clear();
+
+        if (flags == null)
+            return;
+
+        foreach (string flag in flags)
+        {
+            if (!string.IsNullOrWhiteSpace(flag))
+                eventFlags.Add(flag.Trim());
+        }
+    }
+
     private void Awake()
     {
         if (Instance != null && Instance != this)
@@ -200,8 +224,19 @@ public class EventManager : MonoBehaviour
             }
         }
 
+        GameSession.CyberStatusEffect effect = new GameSession.CyberStatusEffect
+        {
+            delta = choice.cyberStatusDelta,
+            source = "EncounterEvent",
+            reason = currentEvent != null && !string.IsNullOrWhiteSpace(currentEvent.eventId)
+                ? currentEvent.eventId
+                : choice.choiceText
+        };
+
+        GameSession.Instance.ApplyCyberStatusEffect(effect);
+
         Debug.Log($"[EventManager] Outcome: {choice.outcomeText}");
-        Debug.Log($"[EventManager] Risk delta: {choice.riskDelta}, Reward delta: {choice.rewardDelta}");
+        Debug.Log($"[EventManager] Cyber status delta: {choice.cyberStatusDelta}");
     }
 
     private bool HasRequiredFlags(string[] requiredFlags)

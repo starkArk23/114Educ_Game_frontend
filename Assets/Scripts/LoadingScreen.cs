@@ -8,6 +8,7 @@ public class LoadingScreen : MonoBehaviour
 {
     public static string nextSceneName;
     public static string operatorName;
+    public static bool skipNameEntry;
     
     [SerializeField] private Slider progressBar; // optional
     [SerializeField] private CanvasGroup loadingGroup;
@@ -74,6 +75,8 @@ public class LoadingScreen : MonoBehaviour
             SetOverlayAlpha(0f);
         }
 
+        SetLoadingInputBlocked(true);
+
         if (terminalText != null)
             terminalText.text = string.Empty;
 
@@ -84,6 +87,14 @@ public class LoadingScreen : MonoBehaviour
     {
         if (!waitingForName || terminalText == null || nameSubmitted)
             return;
+
+        if (skipNameEntry && !string.IsNullOrWhiteSpace(operatorName))
+        {
+            waitingForName = false;
+            nameSubmitted = true;
+            terminalBaseText = terminalText.text.TrimEnd('\r', '\n');
+            return;
+        }
 
         HandleNameInput();
         UpdatePromptLine();
@@ -103,6 +114,7 @@ public class LoadingScreen : MonoBehaviour
             typingComplete = true;
 
         while (op.progress < 0.9f)
+
         {
             float p = Mathf.Clamp01(op.progress / 0.9f);
             if (progressBar != null) progressBar.value = p;
@@ -136,11 +148,13 @@ public class LoadingScreen : MonoBehaviour
         yield return new WaitUntil(() => op.isDone);
         yield return null; // let the new scene render a frame under the overlay
 
+        SetLoadingInputBlocked(false);
         yield return StartCoroutine(FadeOverlay(1f, 0f, fadeInDuration));
 
         if (loadingCanvasRoot != null)
             Destroy(loadingCanvasRoot);
 
+        skipNameEntry = false;
         Destroy(gameObject);
     }
 
@@ -168,6 +182,14 @@ public class LoadingScreen : MonoBehaviour
 
     private void BeginNameEntry()
     {
+        if (skipNameEntry && !string.IsNullOrWhiteSpace(operatorName))
+        {
+            waitingForName = false;
+            nameSubmitted = true;
+            terminalBaseText = terminalText != null ? terminalText.text.TrimEnd('\r', '\n') : string.Empty;
+            return;
+        }
+
         waitingForName = true;
         nameSubmitted = false;
         promptBlinkTimer = 0f;
@@ -234,7 +256,12 @@ public class LoadingScreen : MonoBehaviour
         waitingForName = false;
 
         string name = string.IsNullOrEmpty(operatorName) ? "UNKNOWN" : operatorName;
-        terminalBaseText = terminalBaseText + "\n\n" + name;
+        if (!terminalBaseText.EndsWith("\n\n" + name, System.StringComparison.Ordinal)
+            && !string.Equals(terminalBaseText, name, System.StringComparison.Ordinal))
+        {
+            terminalBaseText = terminalBaseText + "\n\n" + name;
+        }
+
         terminalText.text = terminalBaseText;
 
         if (string.IsNullOrEmpty(postNameScript))
@@ -310,6 +337,18 @@ public class LoadingScreen : MonoBehaviour
         }
 
         SetOverlayAlpha(to);
+    }
+
+    private void SetLoadingInputBlocked(bool blocked)
+    {
+        if (loadingGroup != null)
+        {
+            loadingGroup.interactable = blocked;
+            loadingGroup.blocksRaycasts = blocked;
+        }
+
+        if (fadeOverlay != null)
+            fadeOverlay.raycastTarget = blocked;
     }
 
     private void SetOverlayAlpha(float alpha)
