@@ -16,6 +16,7 @@ public class Chapter1AviSceneController : MonoBehaviour
     private const string AnchorObjectName = "HallwayRightMarker";
     private const string HallwayExitObjectName = "HallwayReturnExit";
     private static readonly Vector3 ExitTargetOffset = new Vector3(0f, 0f, 0f);
+    private const float ExitArrivalHoldSeconds = 0.2f;
 
     private StoryManager storyManager;
     private Transform aviTransform;
@@ -26,6 +27,8 @@ public class Chapter1AviSceneController : MonoBehaviour
     private bool hasExitTargetPosition;
     private bool exitPresentationStarted;
     private bool exitPresentationComplete;
+    private bool exitArrivalPending;
+    private float exitArrivalStartedAt;
     private float exitAnimationTimeOffset;
     private Sprite aviIdleSprite;
     private Sprite[] aviRightWalkSprites;
@@ -191,6 +194,21 @@ public class Chapter1AviSceneController : MonoBehaviour
         if (!exitPresentationStarted)
             exitPresentationStarted = true;
 
+        if (exitArrivalPending)
+        {
+            aviTransform.position = aviExitTargetPosition;
+            ApplyIdleVisual();
+
+            if (Time.time - exitArrivalStartedAt >= ExitArrivalHoldSeconds)
+            {
+                exitArrivalPending = false;
+                exitPresentationComplete = true;
+                SetAviVisible(false);
+            }
+
+            return;
+        }
+
         Vector3 currentPosition = aviTransform.position;
         Vector3 targetPosition = aviExitTargetPosition;
         Vector3 delta = targetPosition - currentPosition;
@@ -199,8 +217,9 @@ public class Chapter1AviSceneController : MonoBehaviour
         if (remainingDistance <= 0.01f)
         {
             aviTransform.position = targetPosition;
-            exitPresentationComplete = true;
-            SetAviVisible(false);
+            exitArrivalPending = true;
+            exitArrivalStartedAt = Time.time;
+            ApplyIdleVisual();
             return;
         }
 

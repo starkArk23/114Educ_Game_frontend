@@ -20,6 +20,7 @@ public class CameraFocusController : MonoBehaviour
     private Camera attachedCamera;
 
     public Transform ActiveTarget => activeTarget;
+    public float SmoothTime => Mathf.Max(0f, smoothTime);
 
     private void Awake()
     {

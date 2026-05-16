@@ -21,6 +21,7 @@ public class AutoSceneExitTrigger : MonoBehaviour
 
     private Collider2D triggerCollider;
     private bool requestInFlight;
+    private bool requireFreshPlayerEntry;
     private readonly Collider2D[] overlapResults = new Collider2D[OverlapBufferSize];
 
     private void Reset()
@@ -43,7 +44,10 @@ public class AutoSceneExitTrigger : MonoBehaviour
 
         Collider2D playerCollider = FindOverlappingPlayerCollider();
         if (playerCollider == null)
+        {
+            requireFreshPlayerEntry = false;
             return;
+        }
 
         TryHandleTrigger(playerCollider);
     }
@@ -58,6 +62,12 @@ public class AutoSceneExitTrigger : MonoBehaviour
         TryHandleTrigger(other);
     }
 
+    private void OnTriggerExit2D(Collider2D other)
+    {
+        if (ResolvePlayerCollider(other) != null)
+            requireFreshPlayerEntry = false;
+    }
+
     private void TryHandleTrigger(Collider2D other)
     {
         if (!enabled || RuntimeSceneTransition.IsTransitioning || requestInFlight)
@@ -68,8 +78,20 @@ public class AutoSceneExitTrigger : MonoBehaviour
             return;
 
         StoryManager manager = ResolveStoryManager();
-        if (ShouldContinueCurrentNode(manager))
+        bool shouldContinueCurrentNode = ShouldContinueCurrentNode(manager);
+
+        if (!PlayerMovement.CanMove || (!shouldContinueCurrentNode && !IsAvailable()))
         {
+            requireFreshPlayerEntry = true;
+            return;
+        }
+
+        if (requireFreshPlayerEntry)
+            return;
+
+        if (shouldContinueCurrentNode)
+        {
+            requireFreshPlayerEntry = true;
             StartCoroutine(ContinueStoryThenHandleTrigger());
             return;
         }

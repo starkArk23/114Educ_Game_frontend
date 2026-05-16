@@ -77,11 +77,7 @@ public class StoryManager : MonoBehaviour
     {
         isShuttingDown = true;
 
-        if (presentationRoutine != null)
-        {
-            StopCoroutine(presentationRoutine);
-            presentationRoutine = null;
-        }
+        StopPresentationRoutine();
     }
 
     private void Start()
@@ -312,10 +308,22 @@ public class StoryManager : MonoBehaviour
 
         pendingMikeHintPresentation = false;
 
-        if (presentationRoutine != null)
-            StopCoroutine(presentationRoutine);
+        StopPresentationRoutine();
 
         presentationRoutine = StartCoroutine(PresentNodeRoutine(node));
+    }
+
+    private void StopPresentationRoutine()
+    {
+        if (presentationRoutine == null)
+            return;
+
+        StopCoroutine(presentationRoutine);
+        presentationRoutine = null;
+
+        CameraFocusController focusController = FindFirstObjectByType<CameraFocusController>();
+        if (focusController != null)
+            focusController.ClearFocusTarget(false);
     }
 
     private bool CanHandleAsyncCallback()
@@ -431,7 +439,12 @@ public class StoryManager : MonoBehaviour
             yield return new WaitForSeconds(mentorEntranceCameraHold);
 
         if (focusController != null)
+        {
             focusController.ClearFocusTarget(false);
+
+            if (focusController.SmoothTime > 0f)
+                yield return new WaitForSeconds(focusController.SmoothTime);
+        }
     }
 
     private StoryNpcEntranceController ResolvePresentationController(string nodeKey)
