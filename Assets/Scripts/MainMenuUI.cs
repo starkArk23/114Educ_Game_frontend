@@ -11,7 +11,7 @@ public class MainMenuUI : MonoBehaviour
     private const string LoadStatusName = "LoadStatusText";
 
     [SerializeField] private string loadingSceneName = "LoadingScene";
-    [SerializeField] private string gameSceneName = "SystemCoreScene";
+    [SerializeField] private string gameSceneName = "DreamScene";
     [SerializeField] private TMP_InputField operatorNameInput;
     [SerializeField] private Button loadButton;
     [SerializeField] private GameObject loadPanelRoot;
