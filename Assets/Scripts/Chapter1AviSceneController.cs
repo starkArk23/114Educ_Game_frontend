@@ -12,22 +12,11 @@ public class Chapter1AviSceneController : MonoBehaviour
     private const string SupportedSceneName = "HallwayScene";
     private const string AviIntroNodeKey = "chapter1.avi_intro";
     private const string AnchorIntroNodeKey = "chapter1.anchor_intro";
-    private const string ExploreGateNodeKey = "chapter1.explore_gate";
     private const string AviObjectName = "AviStoryNPC";
     private const string AnchorObjectName = "HallwayRightMarker";
     private const string HallwayExitObjectName = "HallwayReturnExit";
-    private const string LightPanelObjectName = "FloatingLightPanelPoint";
-    private const string HolographicWindowObjectName = "HolographicWindowPoint";
-    private const string MaintenanceBotObjectName = "IdleMaintenanceBotPoint";
-    private const string CoolingVentObjectName = "CoolingVentPanelPoint";
-    private const string ArchiveShelfObjectName = "ArchiveShelfPoint";
-    private static readonly Vector3 LightPanelPosition = new Vector3(-10.15f, 0.78f, 0f);
-    private static readonly Vector3 HolographicWindowPosition = new Vector3(-9.1f, 0.76f, 0f);
-    private static readonly Vector3 MaintenanceBotPosition = new Vector3(-8.15f, -0.15f, 0f);
-    private static readonly Vector3 CoolingVentPosition = new Vector3(-10.25f, -0.85f, 0f);
-    private static readonly Vector3 ArchiveShelfPosition = new Vector3(-7.25f, 0.22f, 0f);
-    private static readonly Vector3 ExitTargetOffset = new Vector3(0.25f, 0f, 0f);
-    private static Sprite panelSprite;
+    private static readonly Vector3 ExitTargetOffset = new Vector3(0f, 0f, 0f);
+    private const float ExitArrivalHoldSeconds = 0.2f;
 
     private StoryManager storyManager;
     private Transform aviTransform;
@@ -38,6 +27,8 @@ public class Chapter1AviSceneController : MonoBehaviour
     private bool hasExitTargetPosition;
     private bool exitPresentationStarted;
     private bool exitPresentationComplete;
+    private bool exitArrivalPending;
+    private float exitArrivalStartedAt;
     private float exitAnimationTimeOffset;
     private Sprite aviIdleSprite;
     private Sprite[] aviRightWalkSprites;
@@ -50,7 +41,7 @@ public class Chapter1AviSceneController : MonoBehaviour
         exitAnimationTimeOffset = UnityEngine.Random.Range(0f, 100f);
         EnsureSceneReferences();
         EnsureGuideInteraction();
-        EnsureRuntimeInteractions();
+        EnsureAnchorInteraction();
     }
 
     private void Update()
@@ -60,7 +51,7 @@ public class Chapter1AviSceneController : MonoBehaviour
 
         EnsureSceneReferences();
         EnsureGuideInteraction();
-        EnsureRuntimeInteractions();
+        EnsureAnchorInteraction();
         UpdateExitPresentation();
     }
 
@@ -71,7 +62,7 @@ public class Chapter1AviSceneController : MonoBehaviour
 
         return string.Equals(nodeKey, AviIntroNodeKey, StringComparison.Ordinal)
             || string.Equals(nodeKey, AnchorIntroNodeKey, StringComparison.Ordinal)
-            || string.Equals(nodeKey, ExploreGateNodeKey, StringComparison.Ordinal);
+            || string.Equals(nodeKey, "chapter1.explore_gate", StringComparison.Ordinal);
     }
 
     public bool IsPresentationComplete(string nodeKey)
@@ -139,59 +130,6 @@ public class Chapter1AviSceneController : MonoBehaviour
             aviTransform.gameObject.AddComponent<Chapter1AviGuideInteraction>();
     }
 
-    private void EnsureRuntimeInteractions()
-    {
-        if (!SupportsCurrentScene())
-            return;
-
-        EnsureAnchorInteraction();
-        EnsureStoryProp(
-            LightPanelObjectName,
-            LightPanelPosition,
-            new Vector2(1.15f, 0.4f),
-            new Color(0.75f, 0.95f, 1f, 0.9f),
-            "chapter1.light_panel",
-            Chapter1StoryText.LightPanelTitle,
-            Chapter1StoryText.LightPanelBody,
-            Chapter1StoryText.DefaultInteractionPrompt);
-        EnsureStoryProp(
-            HolographicWindowObjectName,
-            HolographicWindowPosition,
-            new Vector2(1.35f, 0.8f),
-            new Color(0.62f, 0.9f, 1f, 0.78f),
-            "chapter1.holographic_window",
-            Chapter1StoryText.HolographicWindowTitle,
-            Chapter1StoryText.HolographicWindowBody,
-            Chapter1StoryText.DefaultInteractionPrompt);
-        EnsureStoryProp(
-            MaintenanceBotObjectName,
-            MaintenanceBotPosition,
-            new Vector2(0.7f, 0.7f),
-            new Color(0.75f, 1f, 0.86f, 0.94f),
-            "chapter1.maintenance_bot",
-            Chapter1StoryText.MaintenanceBotTitle,
-            Chapter1StoryText.MaintenanceBotBody,
-            Chapter1StoryText.DefaultInteractionPrompt);
-        EnsureStoryProp(
-            CoolingVentObjectName,
-            CoolingVentPosition,
-            new Vector2(1.05f, 0.35f),
-            new Color(0.7f, 0.88f, 1f, 0.82f),
-            "chapter1.cooling_vent",
-            Chapter1StoryText.CoolingVentTitle,
-            Chapter1StoryText.CoolingVentBody,
-            Chapter1StoryText.DefaultInteractionPrompt);
-        EnsureStoryProp(
-            ArchiveShelfObjectName,
-            ArchiveShelfPosition,
-            new Vector2(0.9f, 1.25f),
-            new Color(0.88f, 0.95f, 1f, 0.9f),
-            "chapter1.archive_shelf",
-            Chapter1StoryText.ArchiveShelfTitle,
-            Chapter1StoryText.ArchiveShelfBody,
-            Chapter1StoryText.DefaultInteractionPrompt);
-    }
-
     private void EnsureAnchorInteraction()
     {
         GameObject anchorObject = GameObject.Find(AnchorObjectName);
@@ -199,15 +137,6 @@ public class Chapter1AviSceneController : MonoBehaviour
             return;
 
         anchorObject.layer = 3;
-
-        BoxCollider2D collider = anchorObject.GetComponent<BoxCollider2D>();
-        if (collider == null)
-            collider = anchorObject.AddComponent<BoxCollider2D>();
-
-        collider.enabled = true;
-        collider.size = new Vector2(0.95f, 1.2f);
-        collider.offset = Vector2.zero;
-        collider.isTrigger = false;
 
         Chapter1RuntimeStoryInteraction interaction = anchorObject.GetComponent<Chapter1RuntimeStoryInteraction>();
         if (interaction == null)
@@ -221,65 +150,6 @@ public class Chapter1AviSceneController : MonoBehaviour
             Chapter1StoryText.AnchorTitle,
             Chapter1StoryText.AnchorBody,
             Chapter1StoryText.DefaultInteractionPrompt);
-    }
-
-    private void EnsureStoryProp(string objectName, Vector3 worldPosition, Vector2 colliderSize, Color color, string interactionId, string title, string bodyText, string prompt)
-    {
-        GameObject storyProp = GameObject.Find(objectName);
-        if (storyProp == null)
-        {
-            storyProp = new GameObject(objectName);
-            storyProp.layer = 3;
-            storyProp.transform.position = worldPosition;
-
-            SpriteRenderer spriteRenderer = storyProp.AddComponent<SpriteRenderer>();
-            spriteRenderer.sprite = ResolvePanelSprite();
-            spriteRenderer.color = color;
-            spriteRenderer.sortingLayerName = "ActorsFront";
-            spriteRenderer.sortingOrder = 3;
-            storyProp.transform.localScale = new Vector3(colliderSize.x, colliderSize.y, 1f);
-
-            BoxCollider2D collider = storyProp.AddComponent<BoxCollider2D>();
-            collider.size = colliderSize;
-        }
-
-        storyProp.layer = 3;
-        storyProp.transform.position = worldPosition;
-
-        BoxCollider2D storyCollider = storyProp.GetComponent<BoxCollider2D>();
-        if (storyCollider == null)
-            storyCollider = storyProp.AddComponent<BoxCollider2D>();
-
-        storyCollider.enabled = true;
-        storyCollider.size = colliderSize;
-        storyCollider.isTrigger = false;
-
-        Chapter1RuntimeStoryInteraction interaction = storyProp.GetComponent<Chapter1RuntimeStoryInteraction>();
-        if (interaction == null)
-            interaction = storyProp.AddComponent<Chapter1RuntimeStoryInteraction>();
-
-        interaction.Configure(
-            ExploreGateNodeKey,
-            interactionId,
-            "chapter1.room_explore",
-            "Avi",
-            title,
-            bodyText,
-            prompt);
-    }
-
-    private static Sprite ResolvePanelSprite()
-    {
-        if (panelSprite != null)
-            return panelSprite;
-
-        panelSprite = Sprite.Create(
-            Texture2D.whiteTexture,
-            new Rect(0f, 0f, Texture2D.whiteTexture.width, Texture2D.whiteTexture.height),
-            new Vector2(0.5f, 0.5f),
-            16f);
-        panelSprite.name = LightPanelObjectName;
-        return panelSprite;
     }
 
     private void UpdateExitPresentation()
@@ -298,12 +168,17 @@ public class Chapter1AviSceneController : MonoBehaviour
 
         if (!shouldRunExitPresentation)
         {
+            if (exitPresentationStarted || exitPresentationComplete)
+            {
+                SetAviVisible(false);
+                return;
+            }
+
             if (hasCachedAviStartPosition)
                 aviTransform.position = aviStartPosition;
 
             ApplyIdleVisual();
             SetAviVisible(true);
-            exitPresentationStarted = false;
             return;
         }
 
@@ -319,6 +194,21 @@ public class Chapter1AviSceneController : MonoBehaviour
         if (!exitPresentationStarted)
             exitPresentationStarted = true;
 
+        if (exitArrivalPending)
+        {
+            aviTransform.position = aviExitTargetPosition;
+            ApplyIdleVisual();
+
+            if (Time.time - exitArrivalStartedAt >= ExitArrivalHoldSeconds)
+            {
+                exitArrivalPending = false;
+                exitPresentationComplete = true;
+                SetAviVisible(false);
+            }
+
+            return;
+        }
+
         Vector3 currentPosition = aviTransform.position;
         Vector3 targetPosition = aviExitTargetPosition;
         Vector3 delta = targetPosition - currentPosition;
@@ -327,8 +217,9 @@ public class Chapter1AviSceneController : MonoBehaviour
         if (remainingDistance <= 0.01f)
         {
             aviTransform.position = targetPosition;
-            exitPresentationComplete = true;
-            SetAviVisible(false);
+            exitArrivalPending = true;
+            exitArrivalStartedAt = Time.time;
+            ApplyIdleVisual();
             return;
         }
 

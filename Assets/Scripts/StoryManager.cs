@@ -31,6 +31,7 @@ public class StoryManager : MonoBehaviour
     private Coroutine presentationRoutine;
     private float requestStartedAt;
     private bool recoveryRequestInFlight;
+    private bool suppressPresentation;
 
     private bool isShuttingDown;
 
@@ -76,12 +77,9 @@ public class StoryManager : MonoBehaviour
     private void OnDisable()
     {
         isShuttingDown = true;
+        suppressPresentation = false;
 
-        if (presentationRoutine != null)
-        {
-            StopCoroutine(presentationRoutine);
-            presentationRoutine = null;
-        }
+        StopPresentationRoutine();
     }
 
     private void Start()
@@ -301,6 +299,18 @@ public class StoryManager : MonoBehaviour
         if (!CanHandleAsyncCallback())
             return;
 
+        if (suppressPresentation)
+        {
+            currentNode = node;
+            currentChoices = node?.choices ?? new List<GameSession.StoryChoiceDetail>();
+
+            DialogueManager manager = ResolveDialogueManager();
+            if (manager != null)
+                manager.HideDialoguePanel();
+
+            return;
+        }
+
         if (ShouldPresentMikeHintOverlay(node))
         {
             currentNode = node;
@@ -312,10 +322,22 @@ public class StoryManager : MonoBehaviour
 
         pendingMikeHintPresentation = false;
 
-        if (presentationRoutine != null)
-            StopCoroutine(presentationRoutine);
+        StopPresentationRoutine();
 
         presentationRoutine = StartCoroutine(PresentNodeRoutine(node));
+    }
+
+    private void StopPresentationRoutine()
+    {
+        if (presentationRoutine == null)
+            return;
+
+        StopCoroutine(presentationRoutine);
+        presentationRoutine = null;
+
+        CameraFocusController focusController = FindFirstObjectByType<CameraFocusController>();
+        if (focusController != null)
+            focusController.ClearFocusTarget(false);
     }
 
     private bool CanHandleAsyncCallback()
@@ -431,7 +453,12 @@ public class StoryManager : MonoBehaviour
             yield return new WaitForSeconds(mentorEntranceCameraHold);
 
         if (focusController != null)
+        {
             focusController.ClearFocusTarget(false);
+
+            if (focusController.SmoothTime > 0f)
+                yield return new WaitForSeconds(focusController.SmoothTime);
+        }
     }
 
     private StoryNpcEntranceController ResolvePresentationController(string nodeKey)
@@ -588,15 +615,14 @@ public class StoryManager : MonoBehaviour
 
     private void ShowWakeTransitionDialogue(GameSession.StoryNodeDetail node)
     {
-        DialogueManager manager = ResolveDialogueManager();
-        if (manager == null)
-        {
-            ReportError("No DialogueManager was found in the scene.");
-            return;
-        }
-
+        suppressPresentation = true;
         LockMovement();
-        manager.ShowAutoAdvance(GetNodeTitle(node), node.bodyText, BeginWakeTransition);
+
+        DialogueManager manager = ResolveDialogueManager();
+        if (manager != null)
+            manager.HideDialoguePanel();
+
+        BeginWakeTransition();
     }
 
     private void BeginWakeTransition()
@@ -632,9 +658,6 @@ public class StoryManager : MonoBehaviour
             ReportError("Wake transition did not return the next story node.");
             yield break;
         }
-
-        currentNode = nextNode;
-        currentChoices = nextNode.choices ?? new List<GameSession.StoryChoiceDetail>();
 
         DialogueManager manager = ResolveDialogueManager();
         if (wakeTransitionDelaySeconds > 0f)
