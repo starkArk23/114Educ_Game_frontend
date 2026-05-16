@@ -31,6 +31,7 @@ public class StoryManager : MonoBehaviour
     private Coroutine presentationRoutine;
     private float requestStartedAt;
     private bool recoveryRequestInFlight;
+    private bool suppressPresentation;
 
     private bool isShuttingDown;
 
@@ -76,6 +77,7 @@ public class StoryManager : MonoBehaviour
     private void OnDisable()
     {
         isShuttingDown = true;
+        suppressPresentation = false;
 
         StopPresentationRoutine();
     }
@@ -296,6 +298,18 @@ public class StoryManager : MonoBehaviour
     {
         if (!CanHandleAsyncCallback())
             return;
+
+        if (suppressPresentation)
+        {
+            currentNode = node;
+            currentChoices = node?.choices ?? new List<GameSession.StoryChoiceDetail>();
+
+            DialogueManager manager = ResolveDialogueManager();
+            if (manager != null)
+                manager.HideDialoguePanel();
+
+            return;
+        }
 
         if (ShouldPresentMikeHintOverlay(node))
         {
@@ -601,6 +615,7 @@ public class StoryManager : MonoBehaviour
 
     private void ShowWakeTransitionDialogue(GameSession.StoryNodeDetail node)
     {
+        suppressPresentation = true;
         LockMovement();
 
         DialogueManager manager = ResolveDialogueManager();
@@ -643,9 +658,6 @@ public class StoryManager : MonoBehaviour
             ReportError("Wake transition did not return the next story node.");
             yield break;
         }
-
-        currentNode = nextNode;
-        currentChoices = nextNode.choices ?? new List<GameSession.StoryChoiceDetail>();
 
         DialogueManager manager = ResolveDialogueManager();
         if (wakeTransitionDelaySeconds > 0f)
