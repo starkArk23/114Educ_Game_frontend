@@ -6,6 +6,9 @@ using TMPro;
 
 public class LoadingScreen : MonoBehaviour
 {
+    private const string DefaultNextSceneName = "RoomScene";
+    private const string LegacyGameSceneName = "GameScene";
+
     public static string nextSceneName;
     public static string operatorName;
     public static bool skipNameEntry;
@@ -103,9 +106,19 @@ public class LoadingScreen : MonoBehaviour
     private IEnumerator LoadAsync()
     {
         if (string.IsNullOrEmpty(nextSceneName))
-            nextSceneName = "GameScene";
+            nextSceneName = DefaultNextSceneName;
+
+        if (string.Equals(nextSceneName, LegacyGameSceneName, System.StringComparison.Ordinal))
+            nextSceneName = DefaultNextSceneName;
 
         AsyncOperation op = SceneManager.LoadSceneAsync(nextSceneName);
+        if (op == null)
+        {
+            Debug.LogError($"[LoadingScreen] Failed to load scene '{nextSceneName}'. Ensure it is added to the active build profile/shared scene list.", this);
+            SetLoadingInputBlocked(false);
+            yield break;
+        }
+
         op.allowSceneActivation = false;
 
         if (terminalText != null)

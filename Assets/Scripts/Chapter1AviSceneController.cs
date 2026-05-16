@@ -17,11 +17,15 @@ public class Chapter1AviSceneController : MonoBehaviour
     private const string AnchorObjectName = "HallwayRightMarker";
     private const string HallwayExitObjectName = "HallwayReturnExit";
     private const string LightPanelObjectName = "FloatingLightPanelPoint";
-    private const string ThreatMonitorObjectName = "ThreatMonitorPoint";
-    private const string CoreConsoleObjectName = "CoreConsolePoint";
+    private const string HolographicWindowObjectName = "HolographicWindowPoint";
+    private const string MaintenanceBotObjectName = "IdleMaintenanceBotPoint";
+    private const string CoolingVentObjectName = "CoolingVentPanelPoint";
+    private const string ArchiveShelfObjectName = "ArchiveShelfPoint";
     private static readonly Vector3 LightPanelPosition = new Vector3(-10.15f, 0.78f, 0f);
-    private static readonly Vector3 ThreatMonitorPosition = new Vector3(-9.25f, -0.32f, 0f);
-    private static readonly Vector3 CoreConsolePosition = new Vector3(-8.35f, 0.82f, 0f);
+    private static readonly Vector3 HolographicWindowPosition = new Vector3(-9.1f, 0.76f, 0f);
+    private static readonly Vector3 MaintenanceBotPosition = new Vector3(-8.15f, -0.15f, 0f);
+    private static readonly Vector3 CoolingVentPosition = new Vector3(-10.25f, -0.85f, 0f);
+    private static readonly Vector3 ArchiveShelfPosition = new Vector3(-7.25f, 0.22f, 0f);
     private static readonly Vector3 ExitTargetOffset = new Vector3(0.25f, 0f, 0f);
     private static Sprite panelSprite;
 
@@ -147,27 +151,45 @@ public class Chapter1AviSceneController : MonoBehaviour
             new Vector2(1.15f, 0.4f),
             new Color(0.75f, 0.95f, 1f, 0.9f),
             "chapter1.light_panel",
-            "Floating Light Panel",
-            "A translucent panel hovers near the wall, softly shifting between cool white and pale blue. You tap it, and the lighting subtly changes.\n\nAvi: Oh! That adjusts the lighting.\n\n[She squints up at the ceiling.]\n\nAvi: The Mentor says bright lights help with focus... but honestly, they just strain my eyes. Don't tell him I said that...",
-            "Press E to check");
+            Chapter1StoryText.LightPanelTitle,
+            Chapter1StoryText.LightPanelBody,
+            Chapter1StoryText.DefaultInteractionPrompt);
         EnsureStoryProp(
-            ThreatMonitorObjectName,
-            ThreatMonitorPosition,
-            new Vector2(1.05f, 0.55f),
-            new Color(0.67f, 0.98f, 0.9f, 0.92f),
-            "chapter1.monitor",
-            "Threat Monitor",
-            "A monitor scrolls through low-priority anomaly pings. Avi keeps sneaking glances back to make sure none of them spike while you're looking around.",
-            "Press E to check");
+            HolographicWindowObjectName,
+            HolographicWindowPosition,
+            new Vector2(1.35f, 0.8f),
+            new Color(0.62f, 0.9f, 1f, 0.78f),
+            "chapter1.holographic_window",
+            Chapter1StoryText.HolographicWindowTitle,
+            Chapter1StoryText.HolographicWindowBody,
+            Chapter1StoryText.DefaultInteractionPrompt);
         EnsureStoryProp(
-            CoreConsoleObjectName,
-            CoreConsolePosition,
-            new Vector2(0.95f, 0.5f),
-            new Color(0.9f, 0.88f, 1f, 0.92f),
-            "chapter1.console",
-            "Core Console",
-            "A maintenance console scrolls through integrity checks and routing logs. Avi uses stations like this to catch weak signals before they become real threats.",
-            "Press E to check");
+            MaintenanceBotObjectName,
+            MaintenanceBotPosition,
+            new Vector2(0.7f, 0.7f),
+            new Color(0.75f, 1f, 0.86f, 0.94f),
+            "chapter1.maintenance_bot",
+            Chapter1StoryText.MaintenanceBotTitle,
+            Chapter1StoryText.MaintenanceBotBody,
+            Chapter1StoryText.DefaultInteractionPrompt);
+        EnsureStoryProp(
+            CoolingVentObjectName,
+            CoolingVentPosition,
+            new Vector2(1.05f, 0.35f),
+            new Color(0.7f, 0.88f, 1f, 0.82f),
+            "chapter1.cooling_vent",
+            Chapter1StoryText.CoolingVentTitle,
+            Chapter1StoryText.CoolingVentBody,
+            Chapter1StoryText.DefaultInteractionPrompt);
+        EnsureStoryProp(
+            ArchiveShelfObjectName,
+            ArchiveShelfPosition,
+            new Vector2(0.9f, 1.25f),
+            new Color(0.88f, 0.95f, 1f, 0.9f),
+            "chapter1.archive_shelf",
+            Chapter1StoryText.ArchiveShelfTitle,
+            Chapter1StoryText.ArchiveShelfBody,
+            Chapter1StoryText.DefaultInteractionPrompt);
     }
 
     private void EnsureAnchorInteraction()
@@ -196,9 +218,9 @@ public class Chapter1AviSceneController : MonoBehaviour
             "chapter1.anchor",
             "chapter1.anchor_activation",
             "SYSTEM",
-            "System Anchor",
-            "The crystal glows brighter for a moment. A faint hum resonates through the hall.",
-            "Press E to check");
+            Chapter1StoryText.AnchorTitle,
+            Chapter1StoryText.AnchorBody,
+            Chapter1StoryText.DefaultInteractionPrompt);
     }
 
     private void EnsureStoryProp(string objectName, Vector3 worldPosition, Vector2 colliderSize, Color color, string interactionId, string title, string bodyText, string prompt)
