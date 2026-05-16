@@ -601,15 +601,13 @@ public class StoryManager : MonoBehaviour
 
     private void ShowWakeTransitionDialogue(GameSession.StoryNodeDetail node)
     {
-        DialogueManager manager = ResolveDialogueManager();
-        if (manager == null)
-        {
-            ReportError("No DialogueManager was found in the scene.");
-            return;
-        }
-
         LockMovement();
-        manager.ShowAutoAdvance(GetNodeTitle(node), node.bodyText, BeginWakeTransition);
+
+        DialogueManager manager = ResolveDialogueManager();
+        if (manager != null)
+            manager.HideDialoguePanel();
+
+        BeginWakeTransition();
     }
 
     private void BeginWakeTransition()
