@@ -4,7 +4,7 @@ using UnityEngine.SceneManagement;
 public class EscToMainMenu : MonoBehaviour
 {
     [SerializeField] private string mainMenuSceneName = "MainMenu";
-    [SerializeField] private string gameSceneName = "GameScene";
+    [SerializeField] private string gameSceneName = "RoomScene";
 
     private void Update()
     {

@@ -262,7 +262,7 @@ Transform:
   m_GameObject: {fileID: 85366264}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: -6.1, y: -0.5, z: 0}
+  m_LocalPosition: {x: -6.1, y: -0.35, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -1015,7 +1015,8 @@ MonoBehaviour:
   speaker: SYSTEM CORE
   title: Monitoring Console
   bodyText: '[CRITICAL ALERT]: Remote Desktop Connection established from Moscow.
-    Your firewall has been DISABLED. Files are currently being encrypted. SYSTEM COMPROMISED.'
+    Your firewall has been DISABLED. Files are currently being encrypted. SYSTEM
+    COMPROMISED.'
   buttonLabel: Continue
   promptText: Press E to inspect
 --- !u!61 &175794062
@@ -5142,7 +5143,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::EscToMainMenu
   mainMenuSceneName: MainMenu
-  gameSceneName: GameScene
+  gameSceneName: RoomScene
 --- !u!114 &1079441050
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -5159,6 +5160,8 @@ MonoBehaviour:
   dimOverlay: {fileID: 1350163521}
   allowEscToggle: 1
   mainMenuSceneName: MainMenu
+  loadingSceneName: LoadingScene
+  defaultGameSceneName: RoomScene
 --- !u!4 &1079441051
 Transform:
   m_ObjectHideFlags: 0
@@ -6543,9 +6546,10 @@ MonoBehaviour:
   requiredChapterKey: opening
   activeNodeKeys:
   - opening.room_exit_ready
-  continueNodeKeys: []
+  continueNodeKeys:
+  - opening.room_exit_ready
   playerTag: Player
-  continueCurrentNodeBeforeTransition: 0
+  continueCurrentNodeBeforeTransition: 1
 --- !u!1 &1350163521
 GameObject:
   m_ObjectHideFlags: 0
@@ -7744,7 +7748,7 @@ Transform:
   m_GameObject: {fileID: 1439526960}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: -20.627, y: 0.07, z: 0}
+  m_LocalPosition: {x: -19.47, y: 0.36, z: 0}
   m_LocalScale: {x: 0.4, y: 0.4, z: 0.75}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -10216,7 +10220,7 @@ Transform:
   m_GameObject: {fileID: 2078040299}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: -7.3, y: -0.5, z: 0}
+  m_LocalPosition: {x: -7.3, y: -0.35, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []

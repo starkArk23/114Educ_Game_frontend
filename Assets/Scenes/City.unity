@@ -8759,7 +8759,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::EscToMainMenu
   mainMenuSceneName: MainMenu
-  gameSceneName: GameScene
+  gameSceneName: RoomScene
 --- !u!1 &514548054
 GameObject:
   m_ObjectHideFlags: 0

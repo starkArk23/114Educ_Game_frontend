@@ -1779,7 +1779,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::EscToMainMenu
   mainMenuSceneName: MainMenu
-  gameSceneName: GameScene
+  gameSceneName: RoomScene
 --- !u!114 &591199670
 MonoBehaviour:
   m_ObjectHideFlags: 0

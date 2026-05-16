@@ -12,13 +12,17 @@ public class Chapter1CoreSceneSetup : MonoBehaviour
     private const string AnchorObjectName = "SystemAnchorPoint";
     private const string AnchorReferenceObjectName = "IdlePoint";
     private const string LightPanelObjectName = "FloatingLightPanelPoint";
-    private const string ThreatMonitorObjectName = "ThreatMonitorPoint";
-    private const string CoreConsoleObjectName = "CoreConsolePoint";
+    private const string HolographicWindowObjectName = "HolographicWindowPoint";
+    private const string MaintenanceBotObjectName = "IdleMaintenanceBotPoint";
+    private const string CoolingVentObjectName = "CoolingVentPanelPoint";
+    private const string ArchiveShelfObjectName = "ArchiveShelfPoint";
     private static readonly Vector3 AnchorOffset = new Vector3(1.15f, 0.85f, 0f);
     private static readonly Vector3 AviOffset = new Vector3(-0.75f, 0f, 0f);
     private static readonly Vector3 LightPanelOffset = new Vector3(1.7f, 0.8f, 0f);
-    private static readonly Vector3 ThreatMonitorOffset = new Vector3(2.65f, -0.3f, 0f);
-    private static readonly Vector3 CoreConsoleOffset = new Vector3(3.55f, 0.8f, 0f);
+    private static readonly Vector3 HolographicWindowOffset = new Vector3(2.7f, 0.85f, 0f);
+    private static readonly Vector3 MaintenanceBotOffset = new Vector3(3.55f, -0.2f, 0f);
+    private static readonly Vector3 CoolingVentOffset = new Vector3(1.8f, -0.85f, 0f);
+    private static readonly Vector3 ArchiveShelfOffset = new Vector3(4.2f, 0.25f, 0f);
     private static Sprite panelSprite;
 
     private void Awake()
@@ -81,9 +85,9 @@ public class Chapter1CoreSceneSetup : MonoBehaviour
             "chapter1.anchor",
             "chapter1.anchor_activation",
             "SYSTEM",
-            "System Anchor",
-            "The crystal glows brighter for a moment. A faint hum resonates through the core.",
-            "Press E to check");
+            Chapter1StoryText.AnchorTitle,
+            Chapter1StoryText.AnchorBody,
+            Chapter1StoryText.DefaultInteractionPrompt);
     }
 
     private void EnsureStoryProps()
@@ -98,27 +102,45 @@ public class Chapter1CoreSceneSetup : MonoBehaviour
             new Vector2(1.15f, 0.4f),
             new Color(0.75f, 0.95f, 1f, 0.9f),
             "chapter1.light_panel",
-            "Floating Light Panel",
-            "A translucent panel hovers near the wall, softly shifting between cool white and pale blue. You tap it, and the lighting subtly changes.\n\nAvi: Oh! That adjusts the lighting.\n\n[She squints up at the ceiling.]\n\nAvi: The Mentor says bright lights help with focus... but honestly, they just strain my eyes. Don't tell him I said that...",
-            "Press E to check");
+            Chapter1StoryText.LightPanelTitle,
+            Chapter1StoryText.LightPanelBody,
+            Chapter1StoryText.DefaultInteractionPrompt);
         EnsureStoryProp(
-            ThreatMonitorObjectName,
-            referenceTransform.position + ThreatMonitorOffset,
-            new Vector2(1.05f, 0.55f),
-            new Color(0.67f, 0.98f, 0.9f, 0.92f),
-            "chapter1.monitor",
-            "Threat Monitor",
-            "A monitor scrolls through low-priority anomaly pings. Avi keeps sneaking glances back to make sure none of them spike while you're looking around.",
-            "Press E to check");
+            HolographicWindowObjectName,
+            referenceTransform.position + HolographicWindowOffset,
+            new Vector2(1.35f, 0.8f),
+            new Color(0.62f, 0.9f, 1f, 0.78f),
+            "chapter1.holographic_window",
+            Chapter1StoryText.HolographicWindowTitle,
+            Chapter1StoryText.HolographicWindowBody,
+            Chapter1StoryText.DefaultInteractionPrompt);
         EnsureStoryProp(
-            CoreConsoleObjectName,
-            referenceTransform.position + CoreConsoleOffset,
-            new Vector2(0.95f, 0.5f),
-            new Color(0.9f, 0.88f, 1f, 0.92f),
-            "chapter1.console",
-            "Core Console",
-            "A maintenance console scrolls through integrity checks and routing logs. Avi uses stations like this to catch weak signals before they become real threats.",
-            "Press E to check");
+            MaintenanceBotObjectName,
+            referenceTransform.position + MaintenanceBotOffset,
+            new Vector2(0.7f, 0.7f),
+            new Color(0.75f, 1f, 0.86f, 0.94f),
+            "chapter1.maintenance_bot",
+            Chapter1StoryText.MaintenanceBotTitle,
+            Chapter1StoryText.MaintenanceBotBody,
+            Chapter1StoryText.DefaultInteractionPrompt);
+        EnsureStoryProp(
+            CoolingVentObjectName,
+            referenceTransform.position + CoolingVentOffset,
+            new Vector2(1.05f, 0.35f),
+            new Color(0.7f, 0.88f, 1f, 0.82f),
+            "chapter1.cooling_vent",
+            Chapter1StoryText.CoolingVentTitle,
+            Chapter1StoryText.CoolingVentBody,
+            Chapter1StoryText.DefaultInteractionPrompt);
+        EnsureStoryProp(
+            ArchiveShelfObjectName,
+            referenceTransform.position + ArchiveShelfOffset,
+            new Vector2(0.9f, 1.25f),
+            new Color(0.88f, 0.95f, 1f, 0.9f),
+            "chapter1.archive_shelf",
+            Chapter1StoryText.ArchiveShelfTitle,
+            Chapter1StoryText.ArchiveShelfBody,
+            Chapter1StoryText.DefaultInteractionPrompt);
     }
 
     private void EnsureStoryProp(string objectName, Vector3 worldPosition, Vector2 colliderSize, Color color, string interactionId, string title, string bodyText, string prompt)
