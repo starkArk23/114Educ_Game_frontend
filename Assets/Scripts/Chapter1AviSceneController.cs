@@ -165,12 +165,17 @@ public class Chapter1AviSceneController : MonoBehaviour
 
         if (!shouldRunExitPresentation)
         {
+            if (exitPresentationStarted || exitPresentationComplete)
+            {
+                SetAviVisible(false);
+                return;
+            }
+
             if (hasCachedAviStartPosition)
                 aviTransform.position = aviStartPosition;
 
             ApplyIdleVisual();
             SetAviVisible(true);
-            exitPresentationStarted = false;
             return;
         }
 

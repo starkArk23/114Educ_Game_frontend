@@ -676,7 +676,7 @@ GameObject:
   m_Name: MainMenuUI
   m_TagString: Untagged
   m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
+  gameSceneName: SystemCoreScene
   m_StaticEditorFlags: 0
   m_IsActive: 1
 --- !u!224 &389952348
@@ -3548,7 +3548,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::MainMenuUI
   loadingSceneName: LoadingScene
-  gameSceneName: RoomScene
+  gameSceneName: SystemCoreScene
   operatorNameInput: {fileID: 0}
 --- !u!1 &1915757790
 GameObject:

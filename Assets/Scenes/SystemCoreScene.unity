@@ -4503,6 +4503,7 @@ GameObject:
   - component: {fileID: 887141657}
   - component: {fileID: 887141656}
   - component: {fileID: 887141660}
+  - component: {fileID: 887141661}
   m_Layer: 3
   m_Name: CoreSystemExit
   m_TagString: Untagged
@@ -4636,6 +4637,29 @@ MonoBehaviour:
   continueNodeKeys: []
   playerTag: Player
   continueCurrentNodeBeforeTransition: 1
+--- !u!114 &887141661
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 887141654}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 224eacc8c2227cb4a83eac14ea12a47b, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::ScenePortalInteraction
+  targetSceneName: HallwayScene
+  targetSpawnPointId: FromSystemCore
+  interactionId: 
+  groupKey: 
+  storyManager: {fileID: 0}
+  requiredChapterKey: 
+  activeNodeKeys: []
+  completedNodeKeys:
+  - chapter1.complete
+  promptText: Press E to enter Hallway
+  unavailablePromptText: 
 --- !u!1 &890239172
 GameObject:
   m_ObjectHideFlags: 0

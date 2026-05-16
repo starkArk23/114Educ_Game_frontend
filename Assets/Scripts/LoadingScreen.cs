@@ -6,7 +6,7 @@ using TMPro;
 
 public class LoadingScreen : MonoBehaviour
 {
-    private const string DefaultNextSceneName = "RoomScene";
+    private const string DefaultNextSceneName = "SystemCoreScene";
     private const string LegacyGameSceneName = "GameScene";
 
     public static string nextSceneName;
