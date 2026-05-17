@@ -383,6 +383,14 @@ public class StoryManager : MonoBehaviour
         currentNode = node;
         currentChoices = node.choices ?? new List<GameSession.StoryChoiceDetail>();
 
+        // opening.wake must not trigger in the hallway — the player must first walk through
+        // the hallway exit point into SystemCoreScene, where the wake blink fires normally.
+        if (IsHallwayScene() && string.Equals(node.nodeKey, WakeTransitionNodeKey, StringComparison.Ordinal))
+        {
+            presentationRoutine = null;
+            yield break;
+        }
+
         if (node.gateProgress != null && choiceLogUI != null)
             choiceLogUI.Show($"Progress: {node.gateProgress.currentCount}/{node.gateProgress.requiredCount}");
 
