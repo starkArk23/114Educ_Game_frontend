@@ -53,6 +53,16 @@ public class StoryManager : MonoBehaviour
 
     private bool isShuttingDown;
 
+    // -----------------------------------------------------------------------
+    //  Quest Log events
+    // -----------------------------------------------------------------------
+
+    /// <summary>Fired whenever a story node is about to be presented to the player.</summary>
+    public static event Action<GameSession.StoryNodeDetail> OnNodePresented;
+
+    /// <summary>Fired when the player selects a story choice.</summary>
+    public static event Action<GameSession.StoryNodeDetail, GameSession.StoryChoiceDetail> OnChoiceSelected;
+
     public string CurrentNodeKey => currentNode?.nodeKey ?? string.Empty;
     public string CurrentChapterKey => currentNode?.chapterKey ?? string.Empty;
     public bool CanContinueCurrentNode => !requestInFlight && currentNode != null && currentNode.canContinue;
@@ -201,11 +211,12 @@ public class StoryManager : MonoBehaviour
             yield break;
         }
 
-        // If the player already advanced past avi_intro (fast click before this routine
-        // completed its frame wait), do not re-fetch the arrival node — the backend would
-        // return avi_intro as the "current" node regardless of actual progress, causing the
-        // dialog to repeat and interrupting the in-progress anchor_intro presentation.
-        if (!string.IsNullOrEmpty(CurrentNodeKey))
+        // If the player fast-clicked through avi_intro and anchor_intro is already being
+        // presented, do not re-fetch — the backend always returns avi_intro for the
+        // HallwayArrivalNodeKey override, which would interrupt the in-progress Avi walk.
+        // Any other non-empty CurrentNodeKey (e.g. a racing ResumeCurrentStory() response
+        // from opening.core_intro) should still be overridden so avi_intro is shown.
+        if (string.Equals(CurrentNodeKey, AnchorIntroNodeKey, StringComparison.Ordinal))
             yield break;
 
         StartCoroutine(GameSession.Instance.GetCurrentStoryNode(HallwayArrivalNodeKey, HandleNodeResponse));
@@ -420,6 +431,9 @@ public class StoryManager : MonoBehaviour
         currentNode = node;
         currentChoices = node.choices ?? new List<GameSession.StoryChoiceDetail>();
 
+        // Notify the quest log before any yielding so the entry is recorded immediately.
+        OnNodePresented?.Invoke(node);
+
         // Capture the scene name before any yield so that scene transitions that occur
         // while WaitForPresentationGate is running do not corrupt the suppression checks below.
         bool startedInHallwayScene = IsHallwayScene();
@@ -591,6 +605,7 @@ public class StoryManager : MonoBehaviour
         }
 
         GameSession.StoryChoiceDetail selectedChoice = currentChoices[selectionIndex];
+        OnChoiceSelected?.Invoke(currentNode, selectedChoice);
         pendingMikeHintPresentation = IsMikeHintChoice(selectedChoice);
         requestInFlight = true;
         StartCoroutine(GameSession.Instance.SubmitStoryChoice(currentNode.nodeKey, selectedChoice.id, HandleNodeResponse));
