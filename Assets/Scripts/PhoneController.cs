@@ -1,6 +1,5 @@
 using TMPro;
 using UnityEngine;
-using UnityEngine.UI;
 
 [DisallowMultipleComponent]
 public class PhoneController : MonoBehaviour
@@ -52,7 +51,6 @@ public class PhoneController : MonoBehaviour
     private void Awake()
     {
         EnsureStoryPhoneBeats();
-        EnsurePhoneUi();
         SetPhoneVisible(false);
     }
 
@@ -101,7 +99,9 @@ public class PhoneController : MonoBehaviour
 
     public void OpenPhone()
     {
-        EnsurePhoneUi();
+        if (phonePanel == null)
+            return;
+
         RefreshPhoneText();
         SetPhoneVisible(true);
         isOpen = true;
@@ -229,57 +229,6 @@ public class PhoneController : MonoBehaviour
 
     private void EnsurePhoneUi()
     {
-        if (phonePanel != null)
-            return;
-
-        GameObject root = new GameObject("PhoneCanvas");
-        Canvas canvas = root.AddComponent<Canvas>();
-        canvas.renderMode = RenderMode.ScreenSpaceOverlay;
-        canvas.sortingOrder = 250;
-        root.AddComponent<CanvasScaler>();
-        root.AddComponent<GraphicRaycaster>();
-
-        GameObject panelObject = new GameObject("PhonePanel");
-        panelObject.transform.SetParent(root.transform, false);
-        RectTransform panelRect = panelObject.AddComponent<RectTransform>();
-        panelRect.anchorMin = new Vector2(1f, 0.5f);
-        panelRect.anchorMax = new Vector2(1f, 0.5f);
-        panelRect.pivot = new Vector2(1f, 0.5f);
-        panelRect.anchoredPosition = new Vector2(-32f, 0f);
-        panelRect.sizeDelta = new Vector2(320f, 520f);
-
-        Image panelImage = panelObject.AddComponent<Image>();
-        panelImage.color = new Color(0.05f, 0.08f, 0.11f, 0.96f);
-
-        phoneTitleText = CreatePhoneText(panelObject.transform, "PhoneTitle", new Vector2(20f, -24f), new Vector2(-20f, -96f), 30f, FontStyles.Bold);
-        phoneTitleText.alignment = TextAlignmentOptions.TopLeft;
-
-        phoneBodyText = CreatePhoneText(panelObject.transform, "PhoneBody", new Vector2(20f, -100f), new Vector2(-20f, -20f), 24f, FontStyles.Normal);
-        phoneBodyText.alignment = TextAlignmentOptions.TopLeft;
-        phoneBodyText.enableWordWrapping = true;
-
-        phonePanel = panelObject;
-    }
-
-    private static TextMeshProUGUI CreatePhoneText(Transform parent, string objectName, Vector2 offsetMin, Vector2 offsetMax, float fontSize, FontStyles fontStyle)
-    {
-        GameObject textObject = new GameObject(objectName);
-        textObject.transform.SetParent(parent, false);
-
-        RectTransform textRect = textObject.AddComponent<RectTransform>();
-        textRect.anchorMin = new Vector2(0f, 0f);
-        textRect.anchorMax = new Vector2(1f, 1f);
-        textRect.offsetMin = new Vector2(offsetMin.x, -offsetMax.y);
-        textRect.offsetMax = new Vector2(offsetMax.x, -offsetMin.y);
-
-        TextMeshProUGUI textComponent = textObject.AddComponent<TextMeshProUGUI>();
-        textComponent.fontSize = fontSize;
-        textComponent.fontStyle = fontStyle;
-        textComponent.color = Color.white;
-        textComponent.text = string.Empty;
-        if (TMP_Settings.defaultFontAsset != null)
-            textComponent.font = TMP_Settings.defaultFontAsset;
-
-        return textComponent;
+        // Intentionally left blank. The phone UI must be scene-authored if used.
     }
 }
