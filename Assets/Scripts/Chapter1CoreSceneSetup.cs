@@ -16,14 +16,48 @@ public class Chapter1CoreSceneSetup : MonoBehaviour
     private const int InteractableLayer = 3;
     private static readonly Vector3 AviOffset = new Vector3(-0.75f, 0f, 0f);
 
+    [Header("Avi Character")]
+    [SerializeField] private GameObject aviPrefab;
+
     private void Awake()
     {
         if (!SupportsCurrentScene())
             return;
 
+        EnsureAviSpawned();
+        EnsureAviController();
         EnsureAviPlacement();
         EnsureAnchorInteraction();
         EnsureExploreInteractions();
+    }
+
+    /// <summary>
+    /// Instantiates the Avi prefab into the scene as "AviStoryNPC" if it is not
+    /// already present. Must run before EnsureAviPlacement.
+    /// </summary>
+    private void EnsureAviSpawned()
+    {
+        if (GameObject.Find(AviObjectName) != null)
+            return;
+
+        if (aviPrefab == null)
+            return;
+
+        GameObject avi = Instantiate(aviPrefab);
+        avi.name = AviObjectName;
+    }
+
+    /// <summary>
+    /// Adds SystemCoreAviController to this GameObject if one does not already
+    /// exist in the scene. The controller's Start() runs after all Awake() calls,
+    /// so AviStoryNPC is guaranteed to be present by then.
+    /// </summary>
+    private void EnsureAviController()
+    {
+        if (FindFirstObjectByType<SystemCoreAviController>() != null)
+            return;
+
+        gameObject.AddComponent<SystemCoreAviController>();
     }
 
     private void EnsureAviPlacement()
@@ -112,6 +146,18 @@ public class Chapter1CoreSceneSetup : MonoBehaviour
             title,
             bodyText,
             Chapter1StoryText.DefaultInteractionPrompt);
+
+        // Add a quest marker so the player can see which objects are interactable
+        // during the chapter1.explore_gate beat. The marker disappears automatically
+        // once the node advances beyond explore_gate.
+        StoryObjectiveMarkerTarget markerTarget = obj.GetComponent<StoryObjectiveMarkerTarget>();
+        if (markerTarget == null)
+            markerTarget = obj.AddComponent<StoryObjectiveMarkerTarget>();
+
+        markerTarget.ConfigureRuntime("chapter1", new[] { ExploreGateNodeKey }, requireInteractableValue: false);
+
+        if (obj.GetComponent<QuestMarker>() == null)
+            obj.AddComponent<QuestMarker>();
     }
 
     private Transform ResolveAnchorReference()

@@ -70,7 +70,14 @@ public class StoryManager : MonoBehaviour
         Chapter1AviSceneController aviPresentation = mentorPresentation == null
             ? ResolveAviPresentationController(nodeKey)
             : null;
-        return aviPresentation == null || aviPresentation.IsPresentationComplete(nodeKey);
+        if (aviPresentation != null && !aviPresentation.IsPresentationComplete(nodeKey))
+            return false;
+
+        SystemCoreAviController coreAviPresentation = FindFirstObjectByType<SystemCoreAviController>();
+        if (coreAviPresentation != null && !coreAviPresentation.IsExitPresentationComplete(nodeKey))
+            return false;
+
+        return true;
     }
 
     private void OnEnable()

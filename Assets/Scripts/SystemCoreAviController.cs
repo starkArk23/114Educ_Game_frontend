@@ -105,8 +105,7 @@ public class SystemCoreAviController : MonoBehaviour
         if (aviTransform == null)
             return;
 
-        if (entrancePoint != null)
-            aviTransform.position = entrancePoint.position;
+        aviTransform.position = GetEntrancePosition();
 
         SetVisible(false);
         phase = AviPhase.Hidden;
@@ -182,19 +181,14 @@ public class SystemCoreAviController : MonoBehaviour
         {
             case AviPhase.Hidden:
                 SetVisible(false);
-                if (entrancePoint != null)
-                    aviTransform.position = entrancePoint.position;
+                aviTransform.position = GetEntrancePosition();
                 break;
 
             case AviPhase.Entering:
                 SetVisible(true);
                 if (!entranceArrived)
                 {
-                    Vector3 target = encounterPoint != null
-                        ? encounterPoint.position
-                        : aviTransform.position;
-
-                    bool moving = MoveToward(target);
+                    bool moving = MoveToward(GetEncounterPosition());
                     UpdateVisual(moving);
 
                     if (!moving)
@@ -215,11 +209,7 @@ public class SystemCoreAviController : MonoBehaviour
                 SetVisible(true);
                 if (!anchorArrived)
                 {
-                    Vector3 target = anchorIdlePoint != null
-                        ? anchorIdlePoint.position
-                        : aviTransform.position;
-
-                    bool moving = MoveToward(target);
+                    bool moving = MoveToward(GetAnchorPosition());
                     UpdateVisual(moving);
 
                     if (!moving)
@@ -239,8 +229,7 @@ public class SystemCoreAviController : MonoBehaviour
             case AviPhase.IdleAtAnchor:
                 SetVisible(true);
                 // Snap to anchor position (also correct on save/resume).
-                if (anchorIdlePoint != null)
-                    aviTransform.position = anchorIdlePoint.position;
+                aviTransform.position = GetAnchorPosition();
 
                 facingDirection = Vector2.down;
                 UpdateVisual(false);
@@ -250,6 +239,52 @@ public class SystemCoreAviController : MonoBehaviour
                 SetVisible(false);
                 break;
         }
+    }
+
+    // -------------------------------------------------------------------------
+    // Position resolution (serialized Transforms take priority; falls back to
+    // scene-object lookups so the controller works without manual editor wiring)
+    // -------------------------------------------------------------------------
+
+    private static readonly string[] AnchorObjectNames = { "IdlePoint", "COREHUB" };
+    private static readonly Vector3 AnchorAviOffset = new Vector3(-0.75f, 0f, 0f);
+
+    private Vector3 GetAnchorPosition()
+    {
+        if (anchorIdlePoint != null)
+            return anchorIdlePoint.position;
+
+        foreach (string candidateName in AnchorObjectNames)
+        {
+            GameObject go = GameObject.Find(candidateName);
+            if (go != null)
+                return go.transform.position + AnchorAviOffset;
+        }
+
+        return Vector3.zero;
+    }
+
+    private Vector3 GetEncounterPosition()
+    {
+        if (encounterPoint != null)
+            return encounterPoint.position;
+
+        // Use the CoreSystemEntry spawn point as the "bump" location.
+        GameObject spawnGO = GameObject.Find("CoreSystemEntry");
+        if (spawnGO != null)
+            return spawnGO.transform.position;
+
+        // Final fallback: just in front of anchor.
+        return GetAnchorPosition() + new Vector3(3f, -0.5f, 0f);
+    }
+
+    private Vector3 GetEntrancePosition()
+    {
+        if (entrancePoint != null)
+            return entrancePoint.position;
+
+        // Off-screen to the left of the encounter point.
+        return GetEncounterPosition() + new Vector3(-5f, 0f, 0f);
     }
 
     // -------------------------------------------------------------------------
