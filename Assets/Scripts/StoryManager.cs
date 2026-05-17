@@ -9,7 +9,9 @@ public class StoryManager : MonoBehaviour
     private const string MovementLockId = "StoryDialogue";
     private const string MikeHintChoiceId = "ask_mike";
     private const string WakeTransitionNodeKey = "opening.wake";
+    private const string CoreIntroNodeKey = "opening.core_intro";
     private const string AnchorIntroNodeKey = "chapter1.anchor_intro";
+    private const string RoomSceneName = "RoomScene";
     private const string HallwaySceneName = "HallwayScene";
     private const string HallwayArrivalSpawnPointId = "FromRoomScene";
     private const string HallwayArrivalNodeKey = "chapter1.avi_intro";
@@ -187,6 +189,12 @@ public class StoryManager : MonoBehaviour
     {
         Scene activeScene = SceneManager.GetActiveScene();
         return string.Equals(activeScene.name, HallwaySceneName, StringComparison.Ordinal);
+    }
+
+    private static bool IsRoomScene()
+    {
+        Scene activeScene = SceneManager.GetActiveScene();
+        return string.Equals(activeScene.name, RoomSceneName, StringComparison.Ordinal);
     }
 
     private IEnumerator RefreshHallwayArrivalStoryRoutine()
@@ -437,6 +445,7 @@ public class StoryManager : MonoBehaviour
         // Capture the scene name before any yield so that scene transitions that occur
         // while WaitForPresentationGate is running do not corrupt the suppression checks below.
         bool startedInHallwayScene = IsHallwayScene();
+        bool startedInRoomScene = IsRoomScene();
 
         // Switch background music based on threat phase transitions.
         if (ThreatMusicStartNodeKeys.Contains(node.nodeKey))
@@ -470,6 +479,17 @@ public class StoryManager : MonoBehaviour
         // (e.g. the scene changed while WaitForPresentationGate was running its camera hold).
         if (!CanHandleAsyncCallback())
         {
+            presentationRoutine = null;
+            yield break;
+        }
+
+        // opening.core_intro belongs in SystemCoreScene. Suppress it while still in RoomScene
+        // so the room-exit interaction does not surface the dialog before the scene transition.
+        // Use startedInRoomScene (captured before yields) to avoid a race if the scene has
+        // already changed by the time WaitForPresentationGate finishes.
+        if (startedInRoomScene && string.Equals(node.nodeKey, CoreIntroNodeKey, StringComparison.Ordinal))
+        {
+            ReleaseMovement();
             presentationRoutine = null;
             yield break;
         }
@@ -614,7 +634,7 @@ public class StoryManager : MonoBehaviour
     private void TryTriggerMikeHint()
     {
         if (requestInFlight || currentNode == null)
-        MarkRequestCompleted();
+            return;
 
         if (!TryGetMikeHintChoice(out GameSession.StoryChoiceDetail mikeHintChoice))
             return;

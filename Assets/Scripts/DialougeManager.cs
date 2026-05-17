@@ -144,6 +144,9 @@ public class DialogueManager : MonoBehaviour
 
         btn.onClick.AddListener(() =>
         {
+            if (Time.frameCount == skipCompletedFrame)
+                return;
+
             dialoguePanel.SetActive(false);
             PlayerMovement.RemoveMovementLock("Dialogue");
 
