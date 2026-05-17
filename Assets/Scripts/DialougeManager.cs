@@ -34,6 +34,9 @@ public class DialogueManager : MonoBehaviour
     private Coroutine dialogueTypingCoroutine;
     private string activeDialogueFullText = string.Empty;
     private Action activeDialogueComplete;
+    private Coroutine hintTypingCoroutine;
+    private string activeHintFullText = string.Empty;
+    private Action activeHintContinue;
     private TextOverflowModes defaultDialogueOverflowMode = TextOverflowModes.Overflow;
     private bool hasDefaultDialogueOverflowMode;
     private int pagedDialogueButtonIndex = -1;
@@ -75,15 +78,21 @@ public class DialogueManager : MonoBehaviour
 
     private void Update()
     {
-        if (dialogueTypingCoroutine == null || dialoguePanel == null || !dialoguePanel.activeInHierarchy)
-            return;
-
-        if (Input.GetKeyDown(KeyCode.Space)
+        bool skipInput = Input.GetKeyDown(KeyCode.Space)
             || Input.GetKeyDown(KeyCode.Return)
             || Input.GetKeyDown(KeyCode.KeypadEnter)
-            || Input.GetMouseButtonDown(0))
+            || Input.GetMouseButtonDown(0);
+
+        if (dialogueTypingCoroutine != null && dialoguePanel != null && dialoguePanel.activeInHierarchy)
         {
-            CompleteDialogueBodyImmediately();
+            if (skipInput)
+                CompleteDialogueBodyImmediately();
+        }
+
+        if (hintTypingCoroutine != null && hintOverlayPanel != null && hintOverlayPanel.activeInHierarchy)
+        {
+            if (skipInput)
+                CompleteHintTypingImmediately();
         }
     }
 
@@ -314,17 +323,90 @@ public class DialogueManager : MonoBehaviour
         if (hintTitleText != null)
             hintTitleText.text = string.IsNullOrWhiteSpace(title) ? "Mike" : title.Trim();
 
-        hintBodyText.text = body ?? string.Empty;
-
         if (hintPortraitImage != null)
         {
             hintPortraitImage.sprite = ResolveMikeHintPortrait();
             hintPortraitImage.enabled = hintPortraitImage.sprite != null;
         }
 
+        if (hintTypingCoroutine != null)
+        {
+            StopCoroutine(hintTypingCoroutine);
+            hintTypingCoroutine = null;
+        }
+
+        string fullBody = body ?? string.Empty;
+        activeHintFullText = fullBody;
+        activeHintContinue = onContinue;
+
         hintContinueButton.onClick.RemoveAllListeners();
-        hintContinueButton.onClick.AddListener(() => onContinue?.Invoke());
+        hintContinueButton.onClick.AddListener(OnHintContinueClicked);
         hintOverlayPanel.SetActive(true);
+
+        if (dialogueTypeSpeed <= 0f)
+        {
+            hintBodyText.text = fullBody;
+            activeHintFullText = string.Empty;
+        }
+        else
+        {
+            hintTypingCoroutine = StartCoroutine(TypeHintBody(fullBody));
+        }
+    }
+
+    private void OnHintContinueClicked()
+    {
+        if (hintTypingCoroutine != null)
+        {
+            CompleteHintTypingImmediately();
+            return;
+        }
+
+        Action onContinue = activeHintContinue;
+        activeHintContinue = null;
+        onContinue?.Invoke();
+    }
+
+    private void CompleteHintTypingImmediately()
+    {
+        if (hintTypingCoroutine != null)
+        {
+            StopCoroutine(hintTypingCoroutine);
+            hintTypingCoroutine = null;
+        }
+
+        if (hintBodyText != null)
+            hintBodyText.text = activeHintFullText;
+
+        activeHintFullText = string.Empty;
+    }
+
+    private IEnumerator TypeHintBody(string fullText)
+    {
+        if (hintBodyText != null)
+            hintBodyText.text = string.Empty;
+
+        for (int index = 0; index < fullText.Length; index++)
+        {
+            char nextCharacter = fullText[index];
+            if (hintBodyText != null)
+                hintBodyText.text = fullText.Substring(0, index + 1);
+
+            if (nextCharacter == '\n')
+            {
+                yield return new WaitForSecondsRealtime(linePause);
+                continue;
+            }
+
+            float delay = dialogueTypeSpeed;
+            if (nextCharacter == '.' || nextCharacter == ',' || nextCharacter == '!' || nextCharacter == '?' || nextCharacter == ':' || nextCharacter == ';')
+                delay += punctuationPause;
+
+            yield return new WaitForSecondsRealtime(delay);
+        }
+
+        hintTypingCoroutine = null;
+        activeHintFullText = string.Empty;
     }
 
     public void HideHintOverlay()

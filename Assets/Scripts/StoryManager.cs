@@ -9,6 +9,7 @@ public class StoryManager : MonoBehaviour
     private const string MovementLockId = "StoryDialogue";
     private const string MikeHintChoiceId = "ask_mike";
     private const string WakeTransitionNodeKey = "opening.wake";
+    private const string AnchorIntroNodeKey = "chapter1.anchor_intro";
     private const string HallwaySceneName = "HallwayScene";
     private const string HallwayArrivalSpawnPointId = "FromRoomScene";
     private const string HallwayArrivalNodeKey = "chapter1.avi_intro";
@@ -395,6 +396,16 @@ public class StoryManager : MonoBehaviour
             choiceLogUI.Show($"Progress: {node.gateProgress.currentCount}/{node.gateProgress.requiredCount}");
 
         yield return WaitForPresentationGate(node);
+
+        // anchor_intro dialog belongs in SystemCoreScene (where the anchor object lives).
+        // In HallwayScene the Avi exit animation already ran; skip the dialog here so it
+        // doesn't show twice once the scene transition lands in SystemCoreScene.
+        if (IsHallwayScene() && string.Equals(node.nodeKey, AnchorIntroNodeKey, StringComparison.Ordinal))
+        {
+            ReleaseMovement();
+            presentationRoutine = null;
+            yield break;
+        }
 
         if (currentChoices.Count > 0)
         {
