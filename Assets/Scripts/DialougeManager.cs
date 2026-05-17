@@ -11,11 +11,6 @@ public class DialogueManager : MonoBehaviour
 {
     private const string MikePortraitAssetPath = "Assets/Characters/Story_Chars/Mike/mikeee.png";
 
-    private static DialogueManager instance;
-
-    /// <summary>Returns the persistent singleton instance, if one has been created.</summary>
-    public static DialogueManager Instance => instance;
-
     [Header("UI")]
     public GameObject dialoguePanel;
     public TMP_Text titleText;
@@ -39,6 +34,10 @@ public class DialogueManager : MonoBehaviour
     private Coroutine dialogueTypingCoroutine;
     private string activeDialogueFullText = string.Empty;
     private Action activeDialogueComplete;
+    // Frame counter set when typing is skipped via CompleteDialogueBodyImmediately.
+    // Choice buttons ignore their handlers on this same frame so that the keystroke or
+    // click that triggered the skip cannot also advance the dialogue in one input event.
+    private int skipCompletedFrame = -1;
     private Coroutine hintTypingCoroutine;
     private string activeHintFullText = string.Empty;
     private Action activeHintContinue;
@@ -65,20 +64,6 @@ public class DialogueManager : MonoBehaviour
 
     private void Awake()
     {
-        if (instance != null && instance != this)
-        {
-            // A persistent DialogueManager from an earlier scene is still alive.
-            // Destroy this duplicate (along with its canvas root) so the universal
-            // instance and its UI are the only ones in play.
-            Destroy(transform.root.gameObject);
-            return;
-        }
-
-        instance = this;
-        // Persist this object's entire canvas hierarchy across scene loads so the
-        // typewriter settings and UI references are identical in every scene.
-        DontDestroyOnLoad(transform.root.gameObject);
-
         EnsureEventSystem();
         EnsureUiReferences();
     }
@@ -287,9 +272,10 @@ public class DialogueManager : MonoBehaviour
         RestoreDialogueTextLayout();
 
         int count = choices != null ? Mathf.Min(choices.Length, 4) : 0;
-        if (count == 1 && TryShowPagedDialogue(title, body, choices[0], 0, onChoiceSelected))
-            return;
 
+        // Always use the typewriter path (BeginDialogueBody) so the effect is consistent
+        // across every scene and node. The old TryShowPagedDialogue shortcut set the full
+        // text immediately, bypassing the typewriter for single-continue long nodes.
         BeginDialogueBody(title, body, () =>
         {
             if (count >= 1) SetupChoiceButton(choiceAButton, choices[0], 0, onChoiceSelected);
@@ -447,6 +433,12 @@ public class DialogueManager : MonoBehaviour
 
         btn.onClick.AddListener(() =>
         {
+            // Ignore the handler when the button was activated on the same frame as a
+            // typing-skip input (Space/Enter/click). The same input event that completed
+            // the typing animation must not also advance the dialogue immediately.
+            if (Time.frameCount == skipCompletedFrame)
+                return;
+
             dialoguePanel.SetActive(false);
             onChoiceSelected?.Invoke(index);
         });
@@ -574,6 +566,10 @@ public class DialogueManager : MonoBehaviour
 
     private void CompleteDialogueBodyImmediately()
     {
+        // Record the frame so that choice buttons set up by FinalizeDialogueBody's
+        // onComplete callback can ignore the click/keypress that triggered this skip.
+        skipCompletedFrame = Time.frameCount;
+
         if (dialogueText == null)
         {
             FinalizeDialogueBody();

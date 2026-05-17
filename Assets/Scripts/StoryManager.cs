@@ -192,6 +192,13 @@ public class StoryManager : MonoBehaviour
             yield break;
         }
 
+        // If the player already advanced past avi_intro (fast click before this routine
+        // completed its frame wait), do not re-fetch the arrival node — the backend would
+        // return avi_intro as the "current" node regardless of actual progress, causing the
+        // dialog to repeat and interrupting the in-progress anchor_intro presentation.
+        if (!string.IsNullOrEmpty(CurrentNodeKey))
+            yield break;
+
         StartCoroutine(GameSession.Instance.GetCurrentStoryNode(HallwayArrivalNodeKey, HandleNodeResponse));
     }
 
@@ -404,6 +411,10 @@ public class StoryManager : MonoBehaviour
         currentNode = node;
         currentChoices = node.choices ?? new List<GameSession.StoryChoiceDetail>();
 
+        // Capture the scene name before any yield so that scene transitions that occur
+        // while WaitForPresentationGate is running do not corrupt the suppression checks below.
+        bool startedInHallwayScene = IsHallwayScene();
+
         // Switch background music based on threat phase transitions.
         if (ThreatMusicStartNodeKeys.Contains(node.nodeKey))
             GameSession.Instance.PlayThreatMusicOverride();
@@ -412,7 +423,7 @@ public class StoryManager : MonoBehaviour
 
         // opening.wake must not trigger in the hallway — the player must first walk through
         // the hallway exit point into SystemCoreScene, where the wake blink fires normally.
-        if (IsHallwayScene() && string.Equals(node.nodeKey, WakeTransitionNodeKey, StringComparison.Ordinal))
+        if (startedInHallwayScene && string.Equals(node.nodeKey, WakeTransitionNodeKey, StringComparison.Ordinal))
         {
             presentationRoutine = null;
             yield break;
@@ -432,10 +443,20 @@ public class StoryManager : MonoBehaviour
 
         yield return WaitForPresentationGate(node);
 
+        // Guard against this coroutine continuing after the StoryManager is torn down
+        // (e.g. the scene changed while WaitForPresentationGate was running its camera hold).
+        if (!CanHandleAsyncCallback())
+        {
+            presentationRoutine = null;
+            yield break;
+        }
+
         // anchor_intro dialog belongs in SystemCoreScene (where the anchor object lives).
-        // In HallwayScene the Avi exit animation already ran; skip the dialog here so it
-        // doesn't show twice once the scene transition lands in SystemCoreScene.
-        if (IsHallwayScene() && string.Equals(node.nodeKey, AnchorIntroNodeKey, StringComparison.Ordinal))
+        // Use startedInHallwayScene (captured before yields) instead of IsHallwayScene() to
+        // prevent a race where the scene has already transitioned to SystemCoreScene by the
+        // time WaitForPresentationGate finishes, which would make IsHallwayScene() return
+        // false and cause the dialog to surface prematurely in the hallway context.
+        if (startedInHallwayScene && string.Equals(node.nodeKey, AnchorIntroNodeKey, StringComparison.Ordinal))
         {
             ReleaseMovement();
             presentationRoutine = null;
