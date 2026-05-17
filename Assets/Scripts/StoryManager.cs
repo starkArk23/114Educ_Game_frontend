@@ -73,10 +73,6 @@ public class StoryManager : MonoBehaviour
         if (aviPresentation != null && !aviPresentation.IsPresentationComplete(nodeKey))
             return false;
 
-        SystemCoreAviController coreAviPresentation = FindFirstObjectByType<SystemCoreAviController>();
-        if (coreAviPresentation != null && !coreAviPresentation.IsExitPresentationComplete(nodeKey))
-            return false;
-
         return true;
     }
 

@@ -1,6 +1,9 @@
 using System;
 using UnityEngine;
 using UnityEngine.SceneManagement;
+#if UNITY_EDITOR
+using UnityEditor;
+#endif
 
 [DisallowMultipleComponent]
 public class Chapter1CoreSceneSetup : MonoBehaviour
@@ -15,6 +18,7 @@ public class Chapter1CoreSceneSetup : MonoBehaviour
     private const string AnchorReferenceObjectName = "IdlePoint";
     private const int InteractableLayer = 3;
     private static readonly Vector3 AviOffset = new Vector3(-0.75f, 0f, 0f);
+    private const string AviPrefabPath = "Assets/Prefabs/StoryNPCs/AviChapter1.prefab";
 
     [Header("Avi Character")]
     [SerializeField] private GameObject aviPrefab;
@@ -34,17 +38,32 @@ public class Chapter1CoreSceneSetup : MonoBehaviour
     /// <summary>
     /// Instantiates the Avi prefab into the scene as "AviStoryNPC" if it is not
     /// already present. Must run before EnsureAviPlacement.
+    /// In the editor the prefab is loaded from its known asset path when the
+    /// serialized field is not assigned, removing the need for manual wiring.
     /// </summary>
     private void EnsureAviSpawned()
     {
         if (GameObject.Find(AviObjectName) != null)
             return;
 
-        if (aviPrefab == null)
+        GameObject prefab = ResolveAviPrefab();
+        if (prefab == null)
             return;
 
-        GameObject avi = Instantiate(aviPrefab);
+        GameObject avi = Instantiate(prefab);
         avi.name = AviObjectName;
+    }
+
+    private GameObject ResolveAviPrefab()
+    {
+        if (aviPrefab != null)
+            return aviPrefab;
+
+#if UNITY_EDITOR
+        return AssetDatabase.LoadAssetAtPath<GameObject>(AviPrefabPath);
+#else
+        return null;
+#endif
     }
 
     /// <summary>

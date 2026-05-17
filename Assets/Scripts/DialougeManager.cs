@@ -11,6 +11,11 @@ public class DialogueManager : MonoBehaviour
 {
     private const string MikePortraitAssetPath = "Assets/Characters/Story_Chars/Mike/mikeee.png";
 
+    private static DialogueManager instance;
+
+    /// <summary>Returns the persistent singleton instance, if one has been created.</summary>
+    public static DialogueManager Instance => instance;
+
     [Header("UI")]
     public GameObject dialoguePanel;
     public TMP_Text titleText;
@@ -60,6 +65,20 @@ public class DialogueManager : MonoBehaviour
 
     private void Awake()
     {
+        if (instance != null && instance != this)
+        {
+            // A persistent DialogueManager from an earlier scene is still alive.
+            // Destroy this duplicate (along with its canvas root) so the universal
+            // instance and its UI are the only ones in play.
+            Destroy(transform.root.gameObject);
+            return;
+        }
+
+        instance = this;
+        // Persist this object's entire canvas hierarchy across scene loads so the
+        // typewriter settings and UI references are identical in every scene.
+        DontDestroyOnLoad(transform.root.gameObject);
+
         EnsureEventSystem();
         EnsureUiReferences();
     }
