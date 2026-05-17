@@ -83,6 +83,15 @@ public class StoryManager : MonoBehaviour
         if (!autoStartOnEnable)
             return;
 
+        // A pending restore means a saved game is being loaded — always resume from the
+        // backend's persisted story node instead of using the inspector startNodeKey.
+        if (GameSession.Instance.HasPendingRestore)
+        {
+            if (!IsHallwayScene())
+                ResumeCurrentStory();
+            return;
+        }
+
         if (string.IsNullOrWhiteSpace(startNodeKey))
         {
             if (IsHallwayScene())
