@@ -80,9 +80,16 @@ public class PhoneController : MonoBehaviour
         if (Input.GetKeyDown(toggleKey))
         {
             if (isOpen)
+            {
+                // If a story phone beat is active, Tab answers the call and closes the panel.
+                TryAnswerStoryPhone();
                 ClosePhone();
-            else if (PlayerMovement.CanMove)
+            }
+            else if (PlayerMovement.CanMove || TryGetActiveStoryPhoneBeat(out _))
+            {
+                // Allow Tab to answer a ringing story phone even when movement is locked.
                 HandlePhoneInput();
+            }
         }
 
         if (isOpen && Input.GetKeyDown(KeyCode.Escape))

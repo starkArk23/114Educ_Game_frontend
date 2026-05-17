@@ -54,6 +54,18 @@ public class StoryObjectiveMarkerTarget : MonoBehaviour, IQuestMarkerTarget
     public Transform QuestMarkerAnchor => questMarkerAnchor != null ? questMarkerAnchor : transform;
     public Vector3 QuestMarkerOffset => questMarkerOffset;
 
+    /// <summary>
+    /// Configure this target at runtime (e.g. from a scene-setup script that adds
+    /// interactable components dynamically). Call before the <see cref="QuestMarker"/>
+    /// that references this target runs its first <c>LateUpdate</c>.
+    /// </summary>
+    public void ConfigureRuntime(string chapterKey, string[] nodeKeys, bool requireInteractableValue)
+    {
+        requiredChapterKey = chapterKey ?? string.Empty;
+        activeNodeKeys = nodeKeys ?? Array.Empty<string>();
+        requireInteractable = requireInteractableValue;
+    }
+
     private void Reset()
     {
         if (interactableSource == null)

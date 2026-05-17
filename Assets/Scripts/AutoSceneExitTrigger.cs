@@ -49,6 +49,12 @@ public class AutoSceneExitTrigger : MonoBehaviour
             return;
         }
 
+        // If a fresh entry was required but the trigger has since become available (e.g. a
+        // presentation finished while the player was already standing in the zone), clear the
+        // requirement so the transition is not permanently blocked.
+        if (requireFreshPlayerEntry && !requestInFlight && IsAvailable())
+            requireFreshPlayerEntry = false;
+
         TryHandleTrigger(playerCollider);
     }
 
