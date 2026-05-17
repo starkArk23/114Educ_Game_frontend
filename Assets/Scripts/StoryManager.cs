@@ -16,6 +16,22 @@ public class StoryManager : MonoBehaviour
     private const string HallwayReturnSpawnPointId = "FromHallway";
     private const float RequestStallTimeoutSeconds = 3f;
 
+    private static readonly System.Collections.Generic.HashSet<string> ThreatMusicStartNodeKeys = new System.Collections.Generic.HashSet<string>(StringComparer.Ordinal)
+    {
+        "opening.phone_choice",
+        "chapter1.alert_intro",
+        "chapter2.alley_intro",
+        "chapter3.upload_setup"
+    };
+
+    private static readonly System.Collections.Generic.HashSet<string> ThreatMusicEndNodeKeys = new System.Collections.Generic.HashSet<string>(StringComparer.Ordinal)
+    {
+        "opening.mentor_arrives",
+        "chapter1.complete",
+        "chapter2.complete",
+        "chapter3.after_phase2"
+    };
+
     [SerializeField] private DialogueManager dialogueManager;
     [SerializeField] private ChoiceLogUI choiceLogUI;
     [SerializeField] private bool autoStartOnEnable;
@@ -384,6 +400,12 @@ public class StoryManager : MonoBehaviour
     {
         currentNode = node;
         currentChoices = node.choices ?? new List<GameSession.StoryChoiceDetail>();
+
+        // Switch background music based on threat phase transitions.
+        if (ThreatMusicStartNodeKeys.Contains(node.nodeKey))
+            GameSession.Instance.PlayThreatMusicOverride();
+        else if (ThreatMusicEndNodeKeys.Contains(node.nodeKey))
+            GameSession.Instance.ClearThreatMusicOverride();
 
         // opening.wake must not trigger in the hallway — the player must first walk through
         // the hallway exit point into SystemCoreScene, where the wake blink fires normally.
