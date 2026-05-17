@@ -3974,7 +3974,7 @@ MonoBehaviour:
   dialogueManager: {fileID: 0}
   choiceLogUI: {fileID: 0}
   autoStartOnEnable: 1
-  startNodeKey: opening.boot
+  startNodeKey: 
   mentorEntranceCameraHold: 0.15
   wakeTransitionSceneName: RoomScene
   wakeTransitionSpawnPointId: RoomStart

@@ -13,6 +13,7 @@ public class StoryManager : MonoBehaviour
     private const string HallwaySceneName = "HallwayScene";
     private const string HallwayArrivalSpawnPointId = "FromRoomScene";
     private const string HallwayArrivalNodeKey = "chapter1.avi_intro";
+    private const string HallwayReturnSpawnPointId = "FromHallway";
     private const float RequestStallTimeoutSeconds = 3f;
 
     [SerializeField] private DialogueManager dialogueManager;
@@ -392,6 +393,15 @@ public class StoryManager : MonoBehaviour
             yield break;
         }
 
+        // opening.wake must not re-fire when returning to this scene from HallwayScene.
+        // The FromHallway spawn marks a post-hallway arrival, not the initial wake-up path.
+        if (string.Equals(node.nodeKey, WakeTransitionNodeKey, StringComparison.Ordinal)
+            && RuntimeSceneTransition.ConsumeLatestArrival(SceneManager.GetActiveScene().name, HallwayReturnSpawnPointId))
+        {
+            presentationRoutine = null;
+            yield break;
+        }
+
         if (node.gateProgress != null && choiceLogUI != null)
             choiceLogUI.Show($"Progress: {node.gateProgress.currentCount}/{node.gateProgress.requiredCount}");
 
@@ -709,18 +719,30 @@ public class StoryManager : MonoBehaviour
 
     private DialogueManager ResolveDialogueManager()
     {
-        if (dialogueManager != null && dialogueManager.HasUsableUi)
+        if (dialogueManager != null && dialogueManager.isActiveAndEnabled && dialogueManager.HasUsableUi)
             return dialogueManager;
 
         DialogueManager[] managers = FindObjectsByType<DialogueManager>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+        DialogueManager enabledCandidate = null;
+        DialogueManager fallbackCandidate = null;
+
         for (int index = 0; index < managers.Length; index++)
         {
             DialogueManager candidate = managers[index];
-            if (candidate != null && candidate.HasUsableUi)
+            if (candidate == null)
+                continue;
+
+            if (candidate.isActiveAndEnabled && candidate.HasUsableUi)
             {
-                dialogueManager = candidate;
+                enabledCandidate = candidate;
+                break;
             }
+
+            if (fallbackCandidate == null && candidate.HasUsableUi)
+                fallbackCandidate = candidate;
         }
+
+        dialogueManager = enabledCandidate ?? fallbackCandidate;
 
         if (dialogueManager == null)
             dialogueManager = FindFirstObjectByType<DialogueManager>(FindObjectsInactive.Include);
