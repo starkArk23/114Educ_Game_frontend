@@ -147,6 +147,7 @@ public class GameSession : MonoBehaviour
 
     private const string DefaultApiBaseUrl = "http://localhost:4000/api";
     private const string BackgroundMusicFolderRelativePath = "MUSIC/BG MUSIC";
+    private const string ThreatMusicFileName = "(THREAT MUSIC) Joshua McLean - Mountain Trials.mp3";
     public const int CyberStatusStep = 5;
     public const int MaxCyberStatus = 100;
     public const int MinCyberStatus = 0;
@@ -156,7 +157,7 @@ public class GameSession : MonoBehaviour
         { "MainMenu", "(MAIN MENU MUSIC) New Game Minus - RoccoW.mp3" },
         { "RoomScene", "(LAB MUSIC) William Rosati - Floating Also.mp3" },
         { "HallwayScene", "(LAB MUSIC) William Rosati - Floating Also.mp3" },
-        { "SystemCoreScene", "(THREAT MUSIC) Joshua McLean - Mountain Trials.mp3" },
+        { "SystemCoreScene", "(LAB MUSIC) William Rosati - Floating Also.mp3" },
         { "City", "(CITY MUSIC) Quincas Moreira - Robot City.mp3" }
     };
 
@@ -178,6 +179,7 @@ public class GameSession : MonoBehaviour
     private Coroutine backgroundMusicRoutine;
     private string activeBackgroundMusicScene = string.Empty;
     private string activeBackgroundMusicFile = string.Empty;
+    private bool threatMusicOverrideActive;
 
     public static GameSession Instance
     {
@@ -301,8 +303,46 @@ public class GameSession : MonoBehaviour
         backgroundMusicSource.volume = 0.6f;
     }
 
+    public void PlayThreatMusicOverride()
+    {
+        EnsureBackgroundMusicSource();
+
+        if (threatMusicOverrideActive
+            && string.Equals(activeBackgroundMusicFile, ThreatMusicFileName, StringComparison.Ordinal)
+            && backgroundMusicSource.clip != null
+            && backgroundMusicSource.isPlaying)
+            return;
+
+        threatMusicOverrideActive = true;
+
+        if (string.Equals(activeBackgroundMusicFile, ThreatMusicFileName, StringComparison.Ordinal)
+            && backgroundMusicSource.clip != null
+            && backgroundMusicSource.isPlaying)
+            return;
+
+        activeBackgroundMusicFile = ThreatMusicFileName;
+
+        if (backgroundMusicRoutine != null)
+            StopCoroutine(backgroundMusicRoutine);
+
+        backgroundMusicRoutine = StartCoroutine(LoadAndPlayBackgroundMusic(ThreatMusicFileName, "Threat"));
+    }
+
+    public void ClearThreatMusicOverride()
+    {
+        if (!threatMusicOverrideActive)
+            return;
+
+        threatMusicOverrideActive = false;
+        string currentScene = SceneManager.GetActiveScene().name;
+        activeBackgroundMusicScene = string.Empty;
+        activeBackgroundMusicFile = string.Empty;
+        UpdateBackgroundMusic(currentScene);
+    }
+
     private void UpdateBackgroundMusic(string sceneName)
     {
+        threatMusicOverrideActive = false;
         EnsureBackgroundMusicSource();
 
         if (!TryResolveBackgroundMusicFile(sceneName, out string musicFileName))

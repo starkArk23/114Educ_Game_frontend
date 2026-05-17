@@ -3,13 +3,11 @@ using UnityEngine.SceneManagement;
 
 public static class PauseMenuBootstrap
 {
-    private static readonly string[] GameplaySceneNames =
+    // Scenes that should NOT have a pause menu (non-gameplay scenes).
+    private static readonly string[] ExcludedSceneNames =
     {
-        "City",
-        "GameScene",
-        "HallwayScene",
-        "MainScene",
-        "RoomScene"
+        "MainMenu",
+        "LoadingScene"
     };
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
@@ -40,12 +38,12 @@ public static class PauseMenuBootstrap
         if (string.IsNullOrWhiteSpace(sceneName))
             return false;
 
-        for (int index = 0; index < GameplaySceneNames.Length; index++)
+        for (int index = 0; index < ExcludedSceneNames.Length; index++)
         {
-            if (string.Equals(sceneName, GameplaySceneNames[index], System.StringComparison.Ordinal))
-                return true;
+            if (string.Equals(sceneName, ExcludedSceneNames[index], System.StringComparison.Ordinal))
+                return false;
         }
 
-        return false;
+        return true;
     }
 }
