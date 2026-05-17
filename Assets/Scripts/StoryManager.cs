@@ -7,14 +7,15 @@ using UnityEngine.SceneManagement;
 public class StoryManager : MonoBehaviour
 {
     private const string MovementLockId = "StoryDialogue";
-    private const string MikeHintChoiceId = "ask_mike";
     private const string WakeTransitionNodeKey = "opening.wake";
     private const string CoreIntroNodeKey = "opening.core_intro";
     private const string AnchorIntroNodeKey = "chapter1.anchor_intro";
+    private const string AlleyIntroNodeKey = "chapter2.alley_intro";
     private const string RoomSceneName = "RoomScene";
     private const string HallwaySceneName = "HallwayScene";
     private const string HallwayArrivalSpawnPointId = "FromRoomScene";
     private const string HallwayArrivalNodeKey = "chapter1.avi_intro";
+    private const string AviIntro2NodeKey = "chapter1.avi_intro_2";
     private const string HallwayReturnSpawnPointId = "FromHallway";
     private const float RequestStallTimeoutSeconds = 3f;
 
@@ -47,7 +48,6 @@ public class StoryManager : MonoBehaviour
     private GameSession.StoryNodeDetail currentNode;
     private List<GameSession.StoryChoiceDetail> currentChoices = new List<GameSession.StoryChoiceDetail>();
     private bool requestInFlight;
-    private bool pendingMikeHintPresentation;
     private Coroutine presentationRoutine;
     private float requestStartedAt;
     private bool recoveryRequestInFlight;
@@ -139,11 +139,6 @@ public class StoryManager : MonoBehaviour
     {
         if (requestInFlight && !recoveryRequestInFlight)
             RecoverStalledRequestIfNeeded();
-
-        if (!Input.GetKeyDown(KeyCode.H))
-            return;
-
-        TryTriggerMikeHint();
     }
 
     public void StartStory()
@@ -219,12 +214,11 @@ public class StoryManager : MonoBehaviour
             yield break;
         }
 
-        // If the player fast-clicked through avi_intro and anchor_intro is already being
-        // presented, do not re-fetch — the backend always returns avi_intro for the
-        // HallwayArrivalNodeKey override, which would interrupt the in-progress Avi walk.
-        // Any other non-empty CurrentNodeKey (e.g. a racing ResumeCurrentStory() response
-        // from opening.core_intro) should still be overridden so avi_intro is shown.
-        if (string.Equals(CurrentNodeKey, AnchorIntroNodeKey, StringComparison.Ordinal))
+        // If the player fast-clicked through avi_intro and the intro sequence is already
+        // progressing (avi_intro_2 or anchor_intro), do not re-fetch — overriding would
+        // interrupt the in-progress Avi walk or the second intro dialog.
+        if (string.Equals(CurrentNodeKey, AnchorIntroNodeKey, StringComparison.Ordinal)
+            || string.Equals(CurrentNodeKey, AviIntro2NodeKey, StringComparison.Ordinal))
             yield break;
 
         StartCoroutine(GameSession.Instance.GetCurrentStoryNode(HallwayArrivalNodeKey, HandleNodeResponse));
@@ -335,14 +329,12 @@ public class StoryManager : MonoBehaviour
 
         if (!string.IsNullOrEmpty(error))
         {
-            pendingMikeHintPresentation = false;
             ReportError(error);
             return;
         }
 
         if (node == null)
         {
-            pendingMikeHintPresentation = false;
             ReportError("Story response was empty.");
             return;
         }
@@ -366,17 +358,6 @@ public class StoryManager : MonoBehaviour
 
             return;
         }
-
-        if (ShouldPresentMikeHintOverlay(node))
-        {
-            currentNode = node;
-            currentChoices = node.choices ?? new List<GameSession.StoryChoiceDetail>();
-            pendingMikeHintPresentation = false;
-            ShowMikeHintOverlay(node);
-            return;
-        }
-
-        pendingMikeHintPresentation = false;
 
         StopPresentationRoutine();
 
@@ -408,7 +389,6 @@ public class StoryManager : MonoBehaviour
 
         recoveryRequestInFlight = true;
         requestInFlight = false;
-        pendingMikeHintPresentation = false;
         Debug.LogWarning("[StoryManager] Story request stalled; resyncing current node from backend.", this);
         StartCoroutine(RecoverStalledRequestRoutine());
     }
@@ -500,6 +480,16 @@ public class StoryManager : MonoBehaviour
         // time WaitForPresentationGate finishes, which would make IsHallwayScene() return
         // false and cause the dialog to surface prematurely in the hallway context.
         if (startedInHallwayScene && string.Equals(node.nodeKey, AnchorIntroNodeKey, StringComparison.Ordinal))
+        {
+            ReleaseMovement();
+            presentationRoutine = null;
+            yield break;
+        }
+
+        // chapter2.alley_intro belongs in the Alley/Chapter-2 scene, not in HallwayScene.
+        // Suppress it here so transitioning from Chapter 1 does not pop the Neon District
+        // intro dialog while the player is still standing in the hallway.
+        if (startedInHallwayScene && string.Equals(node.nodeKey, AlleyIntroNodeKey, StringComparison.Ordinal))
         {
             ReleaseMovement();
             presentationRoutine = null;
@@ -626,26 +616,8 @@ public class StoryManager : MonoBehaviour
 
         GameSession.StoryChoiceDetail selectedChoice = currentChoices[selectionIndex];
         OnChoiceSelected?.Invoke(currentNode, selectedChoice);
-        pendingMikeHintPresentation = IsMikeHintChoice(selectedChoice);
         requestInFlight = true;
         StartCoroutine(GameSession.Instance.SubmitStoryChoice(currentNode.nodeKey, selectedChoice.id, HandleNodeResponse));
-    }
-
-    private void TryTriggerMikeHint()
-    {
-        if (requestInFlight || currentNode == null)
-            return;
-
-        if (!TryGetMikeHintChoice(out GameSession.StoryChoiceDetail mikeHintChoice))
-            return;
-
-        DialogueManager manager = ResolveDialogueManager();
-        if (manager == null)
-            return;
-
-        pendingMikeHintPresentation = true;
-        requestInFlight = true;
-        StartCoroutine(GameSession.Instance.SubmitStoryChoice(currentNode.nodeKey, mikeHintChoice.id, HandleNodeResponse));
     }
 
     private void ContinueCurrentNode()
@@ -655,73 +627,6 @@ public class StoryManager : MonoBehaviour
 
         requestInFlight = true;
         StartCoroutine(GameSession.Instance.ContinueStoryNode(currentNode.nodeKey, HandleNodeResponse));
-    }
-
-    private bool TryGetMikeHintChoice(out GameSession.StoryChoiceDetail mikeHintChoice)
-    {
-        if (currentChoices != null)
-        {
-            for (int index = 0; index < currentChoices.Count; index++)
-            {
-                GameSession.StoryChoiceDetail candidate = currentChoices[index];
-                if (IsMikeHintChoice(candidate))
-                {
-                    mikeHintChoice = candidate;
-                    return true;
-                }
-            }
-        }
-
-        mikeHintChoice = null;
-        return false;
-    }
-
-    private static bool IsMikeHintChoice(GameSession.StoryChoiceDetail choice)
-    {
-        if (choice == null)
-            return false;
-
-        if (string.Equals(choice.id, MikeHintChoiceId, StringComparison.OrdinalIgnoreCase))
-            return true;
-
-        return !string.IsNullOrWhiteSpace(choice.label)
-            && choice.label.IndexOf("MIKE", StringComparison.OrdinalIgnoreCase) >= 0
-            && choice.trustTokenCost > 0;
-    }
-
-    private bool ShouldPresentMikeHintOverlay(GameSession.StoryNodeDetail node)
-    {
-        return pendingMikeHintPresentation
-            && node != null
-            && string.Equals(node.speaker, "Mike", StringComparison.OrdinalIgnoreCase);
-    }
-
-    private void ShowMikeHintOverlay(GameSession.StoryNodeDetail node)
-    {
-        DialogueManager manager = ResolveDialogueManager();
-        if (manager == null)
-        {
-            ReportError("No DialogueManager was found in the scene.");
-            return;
-        }
-
-        LockMovement();
-        manager.ShowHintOverlay(GetNodeTitle(node), node.bodyText, ContinueFromMikeHint);
-    }
-
-    private void ContinueFromMikeHint()
-    {
-        DialogueManager manager = ResolveDialogueManager();
-        if (manager != null)
-            manager.HideHintOverlay();
-
-        if (currentNode != null && currentNode.canContinue)
-        {
-            ContinueCurrentNode();
-            return;
-        }
-
-        CloseStoryDialogue();
     }
 
     private bool ShouldAutoTransitionWakeNode(GameSession.StoryNodeDetail node)
@@ -853,10 +758,6 @@ public class StoryManager : MonoBehaviour
 
     private void CloseStoryDialogue()
     {
-        DialogueManager manager = ResolveDialogueManager();
-        if (manager != null)
-            manager.HideHintOverlay();
-
         ReleaseMovement();
     }
 

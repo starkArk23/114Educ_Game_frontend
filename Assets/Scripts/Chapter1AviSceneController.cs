@@ -25,6 +25,7 @@ public class Chapter1AviSceneController : MonoBehaviour
     private Vector3 aviExitTargetPosition;
     private bool hasCachedAviStartPosition;
     private bool hasExitTargetPosition;
+    private bool entranceArrived = true;
     private bool exitPresentationStarted;
     private bool exitPresentationComplete;
     private bool exitArrivalPending;
@@ -67,6 +68,11 @@ public class Chapter1AviSceneController : MonoBehaviour
 
     public bool IsPresentationComplete(string nodeKey)
     {
+        // avi_intro bump dialog: wait for Avi to walk to the encounter point first so
+        // the bump scene dialog appears after the visual bump, not before.
+        if (string.Equals(nodeKey, AviIntroNodeKey, StringComparison.Ordinal))
+            return entranceArrived;
+
         if (!string.Equals(nodeKey, AnchorIntroNodeKey, StringComparison.Ordinal))
             return true;
 
@@ -116,15 +122,6 @@ public class Chapter1AviSceneController : MonoBehaviour
             return;
 
         aviTransform.gameObject.layer = 3;
-
-        BoxCollider2D collider = aviTransform.GetComponent<BoxCollider2D>();
-        if (collider == null)
-            collider = aviTransform.gameObject.AddComponent<BoxCollider2D>();
-
-        collider.enabled = true;
-        collider.isTrigger = false;
-        collider.offset = new Vector2(-0.05f, -0.71f);
-        collider.size = new Vector2(1.17f, 2.46f);
 
         if (aviTransform.GetComponent<Chapter1AviGuideInteraction>() == null)
             aviTransform.gameObject.AddComponent<Chapter1AviGuideInteraction>();
@@ -192,7 +189,9 @@ public class Chapter1AviSceneController : MonoBehaviour
         SetAviVisible(true);
 
         if (!exitPresentationStarted)
+        {
             exitPresentationStarted = true;
+        }
 
         if (exitArrivalPending)
         {
@@ -255,12 +254,6 @@ public class Chapter1AviSceneController : MonoBehaviour
         if (aviSpriteRenderer != null)
             aviSpriteRenderer.enabled = visible;
 
-        if (aviTransform != null)
-        {
-            BoxCollider2D collider = aviTransform.GetComponent<BoxCollider2D>();
-            if (collider != null)
-                collider.enabled = visible;
-        }
     }
 
     private void EnsureWalkSpritesLoaded()
@@ -279,6 +272,11 @@ public class Chapter1AviSceneController : MonoBehaviour
 #endif
     }
 
+    public void NotifyEntranceBump()
+    {
+        entranceArrived = true;
+    }
+
     private static bool SupportsCurrentScene()
     {
         return string.Equals(SceneManager.GetActiveScene().name, SupportedSceneName, StringComparison.Ordinal);
@@ -290,6 +288,16 @@ public class Chapter1AviGuideInteraction : MonoBehaviour, IInteractable, IIntera
 {
     private const string MovementLockId = "Chapter1AviGuide";
     private const string ExploreGateNodeKey = "chapter1.explore_gate";
+
+    private void OnCollisionEnter2D(Collision2D collision)
+    {
+        if (!collision.gameObject.CompareTag("Player"))
+            return;
+
+        Chapter1AviSceneController controller = FindFirstObjectByType<Chapter1AviSceneController>();
+        if (controller != null)
+            controller.NotifyEntranceBump();
+    }
 
     public void Interact()
     {
