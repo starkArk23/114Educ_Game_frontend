@@ -141,6 +141,7 @@ public class GameSession : MonoBehaviour
         public int currentCyberStatus;
         public int currentTrustTokens;
         public List<string> unlockedFlags;
+        public List<string> completedNodeKeys;
         public bool endChapter;
     }
 
@@ -169,6 +170,7 @@ public class GameSession : MonoBehaviour
     private int activeSaveSlotNumber;
     private int currentCyberStatus = 50;
     private int currentTrustTokens;
+    private readonly HashSet<string> completedStoryNodeKeys = new HashSet<string>(StringComparer.Ordinal);
     private PendingRestoreState pendingRestore;
     private bool forceFreshSaveSlot;
     private SecurityReportDetail latestSecurityReport;
@@ -204,9 +206,16 @@ public class GameSession : MonoBehaviour
         SyncOperatorNameFromLoadingScreen();
         activeSaveSlotId = string.Empty;
         activeSaveSlotNumber = 0;
+        completedStoryNodeKeys.Clear();
         pendingRestore = null;
         forceFreshSaveSlot = true;
         UpdateCurrentStats(50, 0, "Session", "NewGame");
+    }
+
+    public bool HasCompletedStoryNode(string nodeKey)
+    {
+        return !string.IsNullOrWhiteSpace(nodeKey)
+            && completedStoryNodeKeys.Contains(nodeKey.Trim());
     }
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
@@ -1124,6 +1133,17 @@ public class GameSession : MonoBehaviour
             return;
 
         UpdateCurrentStats(node.currentCyberStatus, node.currentTrustTokens, "StorySystem", node.nodeKey);
+
+        completedStoryNodeKeys.Clear();
+        if (node.completedNodeKeys != null)
+        {
+            for (int index = 0; index < node.completedNodeKeys.Count; index++)
+            {
+                string completedNodeKey = node.completedNodeKeys[index];
+                if (!string.IsNullOrWhiteSpace(completedNodeKey))
+                    completedStoryNodeKeys.Add(completedNodeKey.Trim());
+            }
+        }
 
         EventManager eventManager = EventManager.Instance;
         if (eventManager != null)

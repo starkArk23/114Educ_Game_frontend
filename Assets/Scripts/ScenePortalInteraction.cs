@@ -5,6 +5,13 @@ using UnityEngine;
 [DisallowMultipleComponent]
 public class ScenePortalInteraction : MonoBehaviour, IInteractable, IInteractionPromptProvider
 {
+    private enum PortalAvailability
+    {
+        Unavailable,
+        StoryState,
+        CompletedNode
+    }
+
     [SerializeField] private string targetSceneName;
     [SerializeField] private string targetSpawnPointId;
     [SerializeField] private string interactionId;
@@ -12,6 +19,7 @@ public class ScenePortalInteraction : MonoBehaviour, IInteractable, IInteraction
     [SerializeField] private StoryManager storyManager;
     [SerializeField] private string requiredChapterKey;
     [SerializeField] private string[] activeNodeKeys = Array.Empty<string>();
+    [SerializeField] private string[] completedNodeKeys = Array.Empty<string>();
     [SerializeField] private string promptText = "Press E to enter";
     [SerializeField] private string unavailablePromptText;
 
@@ -19,10 +27,12 @@ public class ScenePortalInteraction : MonoBehaviour, IInteractable, IInteraction
 
     public void Interact()
     {
-        if (!IsAvailable() || requestInFlight)
+        PortalAvailability availability = ResolveAvailability();
+        if (availability == PortalAvailability.Unavailable || requestInFlight)
             return;
 
-        if (!string.IsNullOrWhiteSpace(interactionId) || !string.IsNullOrWhiteSpace(groupKey))
+        if (availability == PortalAvailability.StoryState
+            && (!string.IsNullOrWhiteSpace(interactionId) || !string.IsNullOrWhiteSpace(groupKey)))
         {
             StartCoroutine(RegisterInteractionAndTransition());
             return;
@@ -60,29 +70,32 @@ public class ScenePortalInteraction : MonoBehaviour, IInteractable, IInteraction
         RuntimeSceneTransition.TransitionTo(targetSceneName, targetSpawnPointId);
     }
 
-    private bool IsAvailable()
+    private PortalAvailability ResolveAvailability()
     {
         if (string.IsNullOrWhiteSpace(targetSceneName))
         {
             Debug.LogWarning("[ScenePortalInteraction] Target scene name is required.");
-            return false;
+            return PortalAvailability.Unavailable;
         }
 
+        if (HasCompletedNodeUnlock())
+            return PortalAvailability.CompletedNode;
+
         if (string.IsNullOrWhiteSpace(requiredChapterKey) && (activeNodeKeys == null || activeNodeKeys.Length == 0))
-            return true;
+            return PortalAvailability.StoryState;
 
         StoryManager manager = ResolveStoryManager();
         if (manager == null)
-            return false;
+            return PortalAvailability.Unavailable;
 
         if (!string.IsNullOrWhiteSpace(requiredChapterKey)
             && !string.Equals(manager.CurrentChapterKey, requiredChapterKey, StringComparison.Ordinal))
         {
-            return false;
+            return PortalAvailability.Unavailable;
         }
 
         if (activeNodeKeys == null || activeNodeKeys.Length == 0)
-            return true;
+            return PortalAvailability.StoryState;
 
         string currentNodeKey = manager.CurrentNodeKey;
         for (int index = 0; index < activeNodeKeys.Length; index++)
@@ -92,6 +105,28 @@ public class ScenePortalInteraction : MonoBehaviour, IInteractable, IInteraction
                 continue;
 
             if (string.Equals(currentNodeKey, nodeKey, StringComparison.Ordinal))
+                return PortalAvailability.StoryState;
+        }
+
+        return PortalAvailability.Unavailable;
+    }
+
+    private bool HasCompletedNodeUnlock()
+    {
+        if (completedNodeKeys == null || completedNodeKeys.Length == 0)
+            return false;
+
+        GameSession session = GameSession.Instance;
+        if (session == null)
+            return false;
+
+        for (int index = 0; index < completedNodeKeys.Length; index++)
+        {
+            string nodeKey = completedNodeKeys[index];
+            if (string.IsNullOrWhiteSpace(nodeKey))
+                continue;
+
+            if (session.HasCompletedStoryNode(nodeKey))
                 return true;
         }
 
@@ -108,7 +143,7 @@ public class ScenePortalInteraction : MonoBehaviour, IInteractable, IInteraction
 
     public bool TryGetInteractionPrompt(out string resolvedPromptText)
     {
-        if (IsAvailable())
+        if (ResolveAvailability() != PortalAvailability.Unavailable)
         {
             resolvedPromptText = string.IsNullOrWhiteSpace(promptText) ? "Press E to enter" : promptText.Trim();
             return true;
