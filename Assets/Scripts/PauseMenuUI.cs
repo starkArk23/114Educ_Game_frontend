@@ -161,9 +161,7 @@ public class PauseMenu : MonoBehaviour
         CloseSavePanel();
         SetPaused(false);
 
-        LoadingScreen.skipNameEntry = true;
-        LoadingScreen.nextSceneName = string.IsNullOrWhiteSpace(targetScene) ? defaultGameSceneName : targetScene;
-        SceneManager.LoadScene(loadingSceneName);
+        SceneManager.LoadScene(string.IsNullOrWhiteSpace(targetScene) ? defaultGameSceneName : targetScene);
     }
 
     public void GoToMainMenu()

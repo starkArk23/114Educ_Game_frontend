@@ -28,6 +28,21 @@ public class MainMenuUI : MonoBehaviour
         PlayerMovement.RemoveMovementLock("Pause");
         EnsureLoadUi();
         CloseLoadPanel();
+        PreFillOperatorNameFromPrefs();
+    }
+
+    private void PreFillOperatorNameFromPrefs()
+    {
+        if (operatorNameInput == null)
+            return;
+        if (!string.IsNullOrWhiteSpace(operatorNameInput.text))
+            return;
+        string saved = PlayerPrefs.GetString("SavedOperatorName", string.Empty);
+        if (!string.IsNullOrWhiteSpace(saved))
+        {
+            operatorNameInput.text = saved;
+            LoadingScreen.operatorName = saved;
+        }
     }
 
     public void Play()
@@ -179,9 +194,7 @@ public class MainMenuUI : MonoBehaviour
 
         Time.timeScale = 1f;
         PlayerMovement.RemoveMovementLock("Pause");
-        LoadingScreen.skipNameEntry = true;
-        LoadingScreen.nextSceneName = targetScene;
-        SceneManager.LoadScene(loadingSceneName);
+        SceneManager.LoadScene(targetScene);
     }
 
     private void SetOperatorNameFromInput()
@@ -253,15 +266,18 @@ public class MainMenuUI : MonoBehaviour
 
     private void CreateLoadPanel()
     {
-        Canvas canvas = GetComponentInParent<Canvas>();
-        if (canvas == null)
-            canvas = FindFirstObjectByType<Canvas>();
+        // Find the MainMenuUI child panel (the Image panel containing the menu buttons).
+        // The load panel is parented to it so it shares the same visual background,
+        // matching how the pause menu's SaveSlotPanel works.
+        Transform menuPanel = transform.Find("MainMenuUI");
+        Transform panelParent = menuPanel != null ? menuPanel : transform;
 
-        if (canvas == null)
-            return;
+        Button templateButton = panelParent.GetComponentInChildren<Button>(true);
+        TMP_Text titleTemplate = panelParent.GetComponentInChildren<TMP_Text>(true);
 
-        loadPanelRoot = new GameObject(LoadPanelName, typeof(RectTransform), typeof(Image));
-        loadPanelRoot.transform.SetParent(canvas.transform, false);
+        // Plain RectTransform only — no Image overlay — same as SaveSlotPanel.
+        loadPanelRoot = new GameObject(LoadPanelName, typeof(RectTransform));
+        loadPanelRoot.transform.SetParent(panelParent, false);
 
         RectTransform panelRect = loadPanelRoot.GetComponent<RectTransform>();
         panelRect.anchorMin = Vector2.zero;
@@ -269,19 +285,98 @@ public class MainMenuUI : MonoBehaviour
         panelRect.offsetMin = Vector2.zero;
         panelRect.offsetMax = Vector2.zero;
 
-        Image panelImage = loadPanelRoot.GetComponent<Image>();
-        panelImage.color = new Color(0f, 0f, 0f, 0.72f);
-
-        CreateText(loadPanelRoot.transform, "LoadPanelTitle", "Load Save", 42f, new Vector2(0.5f, 1f), new Vector2(0f, -72f));
-        loadStatusText = CreateText(loadPanelRoot.transform, LoadStatusName, "Choose a save slot to load.", 26f, new Vector2(0.5f, 1f), new Vector2(0f, -130f));
+        TMP_Text panelTitle = CreateTitle(titleTemplate, loadPanelRoot.transform, "Load Save", -60f, 42f);
+        panelTitle.alignment = TextAlignmentOptions.Center;
+        loadStatusText = CreateTitle(titleTemplate, loadPanelRoot.transform, "Choose a save slot to load.", -120f, 26f);
+        loadStatusText.alignment = TextAlignmentOptions.Center;
+        loadStatusText.enableWordWrapping = false;
 
         for (int index = 0; index < loadSlotButtons.Length; index++)
         {
-            Button slotButton = CreateButton(loadPanelRoot.transform, $"LoadSlotButton{index + 1}", BuildEmptySlotLabel(index + 1), new Vector2(0.5f, 1f), new Vector2(0f, -210f - (index * 92f)));
+            int slotNumber = index + 1;
+            Button slotButton;
+
+            if (templateButton != null)
+            {
+                slotButton = Instantiate(templateButton, loadPanelRoot.transform);
+                slotButton.name = $"LoadSlotButton{slotNumber}";
+                slotButton.onClick = new Button.ButtonClickedEvent();
+
+                RectTransform slotRect = slotButton.GetComponent<RectTransform>();
+                slotRect.anchorMin = new Vector2(0.5f, 1f);
+                slotRect.anchorMax = new Vector2(0.5f, 1f);
+                slotRect.pivot = new Vector2(0.5f, 1f);
+                slotRect.anchoredPosition = new Vector2(0f, -180f - (index * 96f));
+
+                LayoutElement slotLayout = slotButton.GetComponent<LayoutElement>();
+                if (slotLayout == null)
+                    slotLayout = slotButton.gameObject.AddComponent<LayoutElement>();
+                slotLayout.preferredWidth = 600f;
+
+                SetButtonLabel(slotButton, BuildEmptySlotLabel(slotNumber));
+            }
+            else
+            {
+                slotButton = CreateButton(loadPanelRoot.transform, $"LoadSlotButton{slotNumber}", BuildEmptySlotLabel(slotNumber), new Vector2(0.5f, 1f), new Vector2(0f, -180f - (index * 96f)));
+            }
+
             loadSlotButtons[index] = slotButton;
         }
 
-        closeLoadPanelButton = CreateButton(loadPanelRoot.transform, "CloseLoadPanelButton", "Back", new Vector2(0.5f, 1f), new Vector2(0f, -690f));
+        if (templateButton != null)
+        {
+            closeLoadPanelButton = Instantiate(templateButton, loadPanelRoot.transform);
+            closeLoadPanelButton.name = "CloseLoadPanelButton";
+            closeLoadPanelButton.onClick = new Button.ButtonClickedEvent();
+
+            RectTransform backRect = closeLoadPanelButton.GetComponent<RectTransform>();
+            backRect.anchorMin = new Vector2(0.5f, 1f);
+            backRect.anchorMax = new Vector2(0.5f, 1f);
+            backRect.pivot = new Vector2(0.5f, 1f);
+            backRect.anchoredPosition = new Vector2(0f, -660f);
+
+            LayoutElement backLayout = closeLoadPanelButton.GetComponent<LayoutElement>();
+            if (backLayout == null)
+                backLayout = closeLoadPanelButton.gameObject.AddComponent<LayoutElement>();
+            backLayout.preferredWidth = 600f;
+
+            SetButtonLabel(closeLoadPanelButton, "Back");
+        }
+        else
+        {
+            closeLoadPanelButton = CreateButton(loadPanelRoot.transform, "CloseLoadPanelButton", "Back", new Vector2(0.5f, 1f), new Vector2(0f, -660f));
+        }
+    }
+
+    private TMP_Text CreateTitle(TMP_Text template, Transform parent, string text, float anchoredY, float fontSize)
+    {
+        TMP_Text label;
+        if (template != null)
+        {
+            label = Instantiate(template, parent);
+            label.name = text.Replace(" ", string.Empty) + "Text";
+            RectTransform rect = label.GetComponent<RectTransform>();
+            rect.anchorMin = new Vector2(0.5f, 1f);
+            rect.anchorMax = new Vector2(0.5f, 1f);
+            rect.pivot = new Vector2(0.5f, 1f);
+            rect.anchoredPosition = new Vector2(0f, anchoredY);
+        }
+        else
+        {
+            GameObject textObject = new GameObject(text.Replace(" ", string.Empty) + "Text", typeof(RectTransform));
+            textObject.transform.SetParent(parent, false);
+            label = textObject.AddComponent<TextMeshProUGUI>();
+            RectTransform rect = label.GetComponent<RectTransform>();
+            rect.anchorMin = new Vector2(0.5f, 1f);
+            rect.anchorMax = new Vector2(0.5f, 1f);
+            rect.pivot = new Vector2(0.5f, 1f);
+            rect.sizeDelta = new Vector2(900f, 60f);
+            rect.anchoredPosition = new Vector2(0f, anchoredY);
+        }
+
+        label.fontSize = fontSize;
+        label.text = text;
+        return label;
     }
 
     private void UpdateLoadSlotLabels()

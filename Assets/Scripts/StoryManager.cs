@@ -52,6 +52,7 @@ public class StoryManager : MonoBehaviour
     private float requestStartedAt;
     private bool recoveryRequestInFlight;
     private bool suppressPresentation;
+    private bool resumedFromSave;
 
     private bool isShuttingDown;
 
@@ -99,6 +100,7 @@ public class StoryManager : MonoBehaviour
         // backend's persisted story node instead of using the inspector startNodeKey.
         if (GameSession.Instance.HasPendingRestore)
         {
+            resumedFromSave = true;
             if (!IsHallwayScene())
                 ResumeCurrentStory();
             return;
@@ -631,6 +633,14 @@ public class StoryManager : MonoBehaviour
 
     private bool ShouldAutoTransitionWakeNode(GameSession.StoryNodeDetail node)
     {
+        // Never fire the wake blink when resuming from a saved game — the player is
+        // already in-world and does not need to be transitioned to the wake scene.
+        if (resumedFromSave)
+        {
+            resumedFromSave = false;
+            return false;
+        }
+
         return node != null
             && node.canContinue
             && string.Equals(node.nodeKey, WakeTransitionNodeKey, StringComparison.Ordinal)

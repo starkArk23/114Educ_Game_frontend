@@ -7410,6 +7410,9 @@ MonoBehaviour:
   choiceCButton: {fileID: 2032161744}
   choiceDButton: {fileID: 510557179}
   choiceLogUI: {fileID: 0}
+  dialogueTypeSpeed: 0.02
+  punctuationPause: 0.04
+  linePause: 0.12
 --- !u!4 &473828646
 Transform:
   m_ObjectHideFlags: 0
@@ -8473,6 +8476,8 @@ MonoBehaviour:
   dimOverlay: {fileID: 23191208}
   allowEscToggle: 1
   mainMenuSceneName: MainMenu
+  loadingSceneName: LoadingScene
+  defaultGameSceneName: RoomScene
 --- !u!4 &514356077
 Transform:
   m_ObjectHideFlags: 0
@@ -8711,6 +8716,7 @@ MonoBehaviour:
   snapOnStart: 1
   smoothTime: 0.2
   offset: {x: 0, y: 0, z: -10}
+  orthographicSize: 2
 --- !u!1 &533451612
 GameObject:
   m_ObjectHideFlags: 0
@@ -9669,8 +9675,8 @@ MonoBehaviour:
       m_Calls: []
   m_text: Button
   m_isRightToLeft: 0
-  m_fontAsset: {fileID: 11400000, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
-  m_sharedMaterial: {fileID: 2180264, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
+  m_fontAsset: {fileID: 11400000, guid: dc36b3fdc14f47ebb36fd484a67e268a, type: 2}
+  m_sharedMaterial: {fileID: 2140032, guid: dc36b3fdc14f47ebb36fd484a67e268a, type: 2}
   m_fontSharedMaterials: []
   m_fontMaterial: {fileID: 0}
   m_fontMaterials: []
@@ -10436,8 +10442,8 @@ MonoBehaviour:
       m_Calls: []
   m_text: Button
   m_isRightToLeft: 0
-  m_fontAsset: {fileID: 11400000, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
-  m_sharedMaterial: {fileID: 2180264, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
+  m_fontAsset: {fileID: 11400000, guid: dc36b3fdc14f47ebb36fd484a67e268a, type: 2}
+  m_sharedMaterial: {fileID: 2140032, guid: dc36b3fdc14f47ebb36fd484a67e268a, type: 2}
   m_fontSharedMaterials: []
   m_fontMaterial: {fileID: 0}
   m_fontMaterials: []
@@ -11416,8 +11422,8 @@ MonoBehaviour:
       m_Calls: []
   m_text: hiii
   m_isRightToLeft: 0
-  m_fontAsset: {fileID: 11400000, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
-  m_sharedMaterial: {fileID: 2180264, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
+  m_fontAsset: {fileID: 11400000, guid: dc36b3fdc14f47ebb36fd484a67e268a, type: 2}
+  m_sharedMaterial: {fileID: 2140032, guid: dc36b3fdc14f47ebb36fd484a67e268a, type: 2}
   m_fontSharedMaterials: []
   m_fontMaterial: {fileID: 0}
   m_fontMaterials: []
@@ -12637,8 +12643,8 @@ MonoBehaviour:
       m_Calls: []
   m_text: Button
   m_isRightToLeft: 0
-  m_fontAsset: {fileID: 11400000, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
-  m_sharedMaterial: {fileID: 2180264, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
+  m_fontAsset: {fileID: 11400000, guid: dc36b3fdc14f47ebb36fd484a67e268a, type: 2}
+  m_sharedMaterial: {fileID: 2140032, guid: dc36b3fdc14f47ebb36fd484a67e268a, type: 2}
   m_fontSharedMaterials: []
   m_fontMaterial: {fileID: 0}
   m_fontMaterials: []
@@ -29599,8 +29605,8 @@ MonoBehaviour:
       m_Calls: []
   m_text: Button
   m_isRightToLeft: 0
-  m_fontAsset: {fileID: 11400000, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
-  m_sharedMaterial: {fileID: 2180264, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
+  m_fontAsset: {fileID: 11400000, guid: dc36b3fdc14f47ebb36fd484a67e268a, type: 2}
+  m_sharedMaterial: {fileID: 2140032, guid: dc36b3fdc14f47ebb36fd484a67e268a, type: 2}
   m_fontSharedMaterials: []
   m_fontMaterial: {fileID: 0}
   m_fontMaterials: []
@@ -31279,6 +31285,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::CyberStatusBarUI
   targetImage: {fileID: 1127411101}
+  errorBlinker: {fileID: 0}
   visualStates:
   - exactCyberStatus: 100
     sprite: {fileID: -3534884448949433820, guid: 538da6c535bdd9d42b96df56bc7a66f8, type: 3}
@@ -31294,6 +31301,16 @@ MonoBehaviour:
     sprite: {fileID: -6252058706133294294, guid: 4834b8739bd4ccd419af227a82dee80b, type: 3}
   - exactCyberStatus: 0
     sprite: {fileID: -2004582417804557287, guid: 4834b8739bd4ccd419af227a82dee80b, type: 3}
+  exactValueText: {fileID: 0}
+  exactValueOffset: {x: 0, y: 18}
+  exactValueFormat: '{0}/100'
+  deltaPopupText: {fileID: 0}
+  deltaPopupOffset: {x: 18, y: 2}
+  deltaPopupDuration: 5
+  deltaPopupRise: 12
+  positiveDeltaColor: {r: 0.3, g: 1, b: 0.45, a: 1}
+  negativeDeltaColor: {r: 1, g: 0.32, b: 0.32, a: 1}
+  suppressSaveSystemPopup: 1
 --- !u!114 &1127411101
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -82615,6 +82632,9 @@ MonoBehaviour:
   choiceCButton: {fileID: 2032161744}
   choiceDButton: {fileID: 510557179}
   choiceLogUI: {fileID: 756965817}
+  dialogueTypeSpeed: 0.02
+  punctuationPause: 0.04
+  linePause: 0.12
 --- !u!1 &1825708357
 GameObject:
   m_ObjectHideFlags: 0
@@ -83108,8 +83128,8 @@ MonoBehaviour:
       m_Calls: []
   m_text: New Text
   m_isRightToLeft: 0
-  m_fontAsset: {fileID: 11400000, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
-  m_sharedMaterial: {fileID: 2180264, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
+  m_fontAsset: {fileID: 11400000, guid: dc36b3fdc14f47ebb36fd484a67e268a, type: 2}
+  m_sharedMaterial: {fileID: 2140032, guid: dc36b3fdc14f47ebb36fd484a67e268a, type: 2}
   m_fontSharedMaterials: []
   m_fontMaterial: {fileID: 0}
   m_fontMaterials: []
@@ -84471,6 +84491,8 @@ MonoBehaviour:
   interactableLayer:
     serializedVersion: 2
     m_Bits: 8
+  interactionKey: 101
+  defaultPromptText: Press E to interact
 --- !u!95 &1933294296
 Animator:
   serializedVersion: 7

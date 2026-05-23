@@ -108,6 +108,7 @@ public class GameSession : MonoBehaviour
         public int currentTrustTokens;
         public List<string> unlockedFlags;
         public Dictionary<string, object> sessionState;
+        public string sourceSlotId;
     }
 
     [Serializable]
@@ -147,6 +148,8 @@ public class GameSession : MonoBehaviour
 
     private const string DefaultApiBaseUrl = "http://localhost:4000/api";
     private const string BackgroundMusicFolderRelativePath = "MUSIC/BG MUSIC";
+    private const string PrefsKeyPlayerId = "SavedPlayerId";
+    private const string PrefsKeyOperatorName = "SavedOperatorName";
     private const string ThreatMusicFileName = "(THREAT MUSIC) Joshua McLean - Mountain Trials.mp3";
     public const int CyberStatusStep = 5;
     public const int MaxCyberStatus = 100;
@@ -440,7 +443,7 @@ public class GameSession : MonoBehaviour
 
     private IEnumerator LoadAndPlayBackgroundMusic(string musicFileName, string sceneName)
     {
-        string audioFilePath = Path.Combine(Application.dataPath, BackgroundMusicFolderRelativePath, musicFileName);
+        string audioFilePath = Path.Combine(Application.streamingAssetsPath, BackgroundMusicFolderRelativePath, musicFileName);
         if (!File.Exists(audioFilePath))
         {
             Debug.LogWarning($"[GameSession] Background music file was not found for scene '{sceneName}': {audioFilePath}");
@@ -958,6 +961,26 @@ public class GameSession : MonoBehaviour
     {
         SyncOperatorNameFromLoadingScreen();
 
+        // Restore persisted identity if still in memory from a previous session.
+        if (string.IsNullOrWhiteSpace(playerId))
+        {
+            string savedId = PlayerPrefs.GetString(PrefsKeyPlayerId, string.Empty);
+            string savedName = PlayerPrefs.GetString(PrefsKeyOperatorName, string.Empty);
+            if (!string.IsNullOrWhiteSpace(savedId) && !string.IsNullOrWhiteSpace(savedName))
+            {
+                // Use the saved identity when no name has been typed yet,
+                // or when the typed name matches the saved one.
+                if (string.IsNullOrWhiteSpace(operatorName) ||
+                    string.Equals(operatorName, savedName, StringComparison.OrdinalIgnoreCase))
+                {
+                    operatorName = savedName;
+                    playerId = savedId;
+                    if (string.IsNullOrWhiteSpace(LoadingScreen.operatorName))
+                        LoadingScreen.operatorName = savedName;
+                }
+            }
+        }
+
         if (!string.IsNullOrWhiteSpace(playerId))
         {
             onComplete?.Invoke(null);
@@ -997,6 +1020,9 @@ public class GameSession : MonoBehaviour
         }
 
         playerId = response.id;
+        PlayerPrefs.SetString(PrefsKeyPlayerId, playerId);
+        PlayerPrefs.SetString(PrefsKeyOperatorName, operatorName);
+        PlayerPrefs.Save();
         onComplete?.Invoke(null);
     }
 
@@ -1065,7 +1091,8 @@ public class GameSession : MonoBehaviour
             currentCyberStatus = currentCyberStatus,
             currentTrustTokens = currentTrustTokens,
             unlockedFlags = unlockedFlags,
-            sessionState = sessionState
+            sessionState = sessionState,
+            sourceSlotId = !string.IsNullOrWhiteSpace(activeSaveSlotId) ? activeSaveSlotId : null
         };
     }
 
